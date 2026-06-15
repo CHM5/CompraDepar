@@ -13,13 +13,7 @@ WorkingDirectory=/home/pi/apps/depar-finder
 EnvironmentFile=/home/pi/apps/depar-finder/.env
 
 # Arrancar con el uvicorn del virtualenv del proyecto
-ExecStart=/home/pi/apps/depar-finder/.venv/bin/uvicorn \
-    api.main:app \
-    --host 127.0.0.1 \
-    --port 8000 \
-    --workers 2 \
-    --log-level info \
-    --access-log
+ExecStart=/home/pi/apps/depar-finder/.venv/bin/uvicorn api.main:app --host 127.0.0.1 --port 8000 --workers 2 --log-level info --access-log
 
 # Reinicio automático
 Restart=on-failure
