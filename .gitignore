@@ -28,6 +28,8 @@ debug*.html
 
 # Node / Next.js
 frontend/node_modules/
+frontend/.env.local
+frontend/.env*.local
 frontend/.next/
 frontend/out/
 
