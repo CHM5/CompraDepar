@@ -29,8 +29,6 @@ echo ""
 
 cd "$APP_DIR"
 
-cd "$APP_DIR"
-
 # ── 1. Backup de la DB ────────────────────────────────────────────────────────
 info "[1/6] Backup de la base de datos..."
 if [ -f "data/departamentos.db" ]; then
@@ -85,11 +83,24 @@ fi
 sudo nginx -t
 success "Config Nginx válida"
 
-# ── 5. Reiniciar servicios ────────────────────────────────────────────────────
-info "[5/6] Reiniciando servicios..."
+# ── 5. Reinstalar servicio systemd + reiniciar ───────────────────────────────
+info "[5/6] Reinstalando servicio systemd y reiniciando..."
+# Parchear el path en el service file con el path real del repo
+SERVICE_TMP=$(mktemp)
+sed "s|WorkingDirectory=.*|WorkingDirectory=$APP_DIR|g;
+     s|EnvironmentFile=.*|EnvironmentFile=$APP_DIR/.env|g;
+     s|ExecStart=.*|ExecStart=$APP_DIR/.venv/bin/uvicorn api.main:app --host 127.0.0.1 --port 8000 --workers 2 --log-level info --access-log|g" \
+    "$APP_DIR/systemd/depar-backend.service" > "$SERVICE_TMP"
+sudo cp "$SERVICE_TMP" /etc/systemd/system/depar-backend.service
+rm -f "$SERVICE_TMP"
 
-# Backend
+# Verificar que .env existe antes de arrancar
+if [ ! -f "$APP_DIR/.env" ]; then
+    error ".env no encontrado en $APP_DIR/.env — el backend no puede arrancar sin él."
+fi
+
 sudo systemctl daemon-reload
+sudo systemctl enable depar-backend
 sudo systemctl restart depar-backend
 sleep 2
 if sudo systemctl is-active --quiet depar-backend; then
