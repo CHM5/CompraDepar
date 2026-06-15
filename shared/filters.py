@@ -58,6 +58,9 @@ class SearchFilters(BaseModel):
     # Antigüedad máxima en años
     antiguedad_max: Optional[int] = None
 
+    # Expensas máximas en ARS
+    expensas_max: Optional[int] = None
+
     def has_meaningful_criteria(self) -> bool:
         """Retorna True si la búsqueda tiene al menos un criterio significativo.
 

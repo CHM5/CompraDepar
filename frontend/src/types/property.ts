@@ -17,6 +17,20 @@ export interface PropertyResult {
   imagen_url: string | null;
 }
 
+export interface ExtraFilters {
+  operacion?: string | null;
+  precio_min?: number | null;
+  precio_max?: number | null;
+  m2_min?: number | null;
+  m2_max?: number | null;
+  ambientes_min?: number | null;
+  ambientes_max?: number | null;
+  balcon?: boolean | null;
+  cochera?: boolean | null;
+  antiguedad_max?: number | null;
+  expensas_max?: number | null;
+}
+
 export interface FiltersApplied {
   operacion: string;
   tipo: string | null;
@@ -26,9 +40,11 @@ export interface FiltersApplied {
   precio_min: number | null;
   precio_max: number | null;
   ambientes_min: number | null;
+  ambientes_max: number | null;
   balcon: boolean | null;
   cochera: boolean | null;
   antiguedad_max: number | null;
+  expensas_max: number | null;
 }
 
 export interface SearchApiRequest {

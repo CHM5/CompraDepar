@@ -4,11 +4,11 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { SearchBox } from "@/components/SearchBox";
 import { ResultsList } from "@/components/ResultsList";
+import { RefinementPanel } from "@/components/RefinementPanel";
 import { searchProperties, HAS_BACKEND } from "@/lib/api";
-import type { SearchApiResponse } from "@/types/property";
+import type { SearchApiResponse, ExtraFilters } from "@/types/property";
 import { Info } from "lucide-react";
 
-// Mix de búsquedas y preguntas de mercado — la app detecta el tipo automáticamente
 const EXAMPLES = [
   "Palermo, entre USD 90k y 120k, desde 40m²",
   "¿Cuánto sale el m² en Palermo?",
@@ -18,22 +18,38 @@ const EXAMPLES = [
   "¿Conviene invertir en Caballito?",
 ];
 
+type SearchParams = { query: string; extraFilters?: ExtraFilters | null };
+
 export default function HomePage() {
   const [hasSearched, setHasSearched] = useState(false);
+  const [lastQuery, setLastQuery] = useState("");
 
   const { mutate, data, isPending, error, reset, variables } = useMutation<
     SearchApiResponse,
     Error,
-    string
+    SearchParams
   >({
-    mutationFn: (query: string) => searchProperties(query),
+    mutationFn: ({ query, extraFilters }) =>
+      searchProperties(query, "free", extraFilters),
   });
 
   function handleSearch(query: string) {
     setHasSearched(true);
+    setLastQuery(query);
     reset();
-    mutate(query);
+    mutate({ query });
   }
+
+  function handleApplyFilters(extra: ExtraFilters) {
+    reset();
+    mutate({ query: lastQuery, extraFilters: extra });
+  }
+
+  const showRefinement =
+    hasSearched &&
+    !isPending &&
+    data?.intent === "search" &&
+    !!data?.filters_applied;
 
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-4 pb-16 pt-12 sm:pt-16">
@@ -90,15 +106,27 @@ export default function HomePage() {
         )}
       </div>
 
+      {/* Refinement panel — slides in after first search results */}
+      {showRefinement && (
+        <div className="mx-auto mt-5 max-w-3xl">
+          <RefinementPanel
+            key={lastQuery}
+            initialFilters={data.filters_applied}
+            onApply={handleApplyFilters}
+            isLoading={isPending}
+          />
+        </div>
+      )}
+
       {/* Results */}
-      <div className="mx-auto mt-8 max-w-5xl">
+      <div className="mx-auto mt-6 max-w-5xl">
         <ResultsList
           data={data}
           isLoading={isPending}
           error={error}
           hasSearched={hasSearched}
           onSearch={handleSearch}
-          loadingQuery={variables}
+          loadingQuery={variables?.query}
         />
       </div>
     </main>

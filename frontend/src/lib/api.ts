@@ -1,4 +1,4 @@
-import type { SearchApiResponse, ChatApiResponse } from "@/types/property";
+import type { SearchApiResponse, ChatApiResponse, ExtraFilters } from "@/types/property";
 
 // Bakeado en build time: true solo cuando NEXT_PUBLIC_API_URL está configurado.
 // En GitHub Pages sin secret configurado este valor es false.
@@ -10,14 +10,18 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export async function searchProperties(
   query: string,
   plan: "free" | "premium" = "free",
+  extraFilters?: ExtraFilters | null,
 ): Promise<SearchApiResponse> {
+  const body: { query: string; extra_filters?: ExtraFilters } = { query };
+  if (extraFilters) body.extra_filters = extraFilters;
+
   const res = await fetch(`${API_URL}/api/v1/search`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-User-Plan": plan,
     },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {

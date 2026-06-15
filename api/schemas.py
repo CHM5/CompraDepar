@@ -11,8 +11,26 @@ from typing import Optional
 from pydantic import BaseModel
 
 
+class ExtraFilters(BaseModel):
+    """Filtros adicionales enviados desde el panel de refinamiento del frontend.
+    Cuando está presente, la búsqueda es solo contra la DB (sin scraping).
+    """
+    operacion: Optional[str] = None
+    precio_min: Optional[int] = None
+    precio_max: Optional[int] = None
+    m2_min: Optional[int] = None
+    m2_max: Optional[int] = None
+    ambientes_min: Optional[int] = None
+    ambientes_max: Optional[int] = None
+    balcon: Optional[bool] = None
+    cochera: Optional[bool] = None
+    antiguedad_max: Optional[int] = None
+    expensas_max: Optional[int] = None
+
+
 class SearchRequest(BaseModel):
     query: str
+    extra_filters: Optional[ExtraFilters] = None
 
     model_config = {
         "json_schema_extra": {

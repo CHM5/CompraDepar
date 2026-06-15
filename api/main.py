@@ -29,7 +29,7 @@ ROOT = Path(__file__).parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from api.schemas import PropertyResult, SearchRequest, SearchResponse, ChatRequest, ChatResponse
+from api.schemas import PropertyResult, SearchRequest, SearchResponse, ChatRequest, ChatResponse, ExtraFilters
 from api.services.query_parser import parse_query
 from api.services import search_service
 from api.services import chat_service
@@ -141,6 +141,20 @@ def search(
     # ── Parsear query ──────────────────────────────────────────────────
     filters: SearchFilters = parse_query(body.query)
 
+    # Cuando el frontend envía extra_filters, fusionarlos y omitir el scraping
+    skip_scraping = False
+    if body.extra_filters:
+        skip_scraping = True
+        ef: ExtraFilters = body.extra_filters
+        for fname in (
+            "operacion", "precio_min", "precio_max",
+            "m2_min", "m2_max", "ambientes_min", "ambientes_max",
+            "balcon", "cochera", "antiguedad_max", "expensas_max",
+        ):
+            val = getattr(ef, fname, None)
+            if val is not None:
+                setattr(filters, fname, val)
+
     if not filters.has_meaningful_criteria():
         logger.info("[API] Sin criterios significativos — no ejecutar búsqueda.")
         return SearchResponse(
@@ -160,6 +174,7 @@ def search(
     all_results = search_service.search(
         filters,
         early_exit=FREE_LIMIT if plan == "free" else None,
+        skip_scraping=skip_scraping,
     )
 
     # ── Aplicar límite según plan ─────────────────────────────────────────────

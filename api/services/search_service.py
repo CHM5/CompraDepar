@@ -33,12 +33,21 @@ logger = logging.getLogger(__name__)
 CACHE_TTL_HOURS = db.CACHE_TTL_HOURS
 
 
-def search(filters: SearchFilters, early_exit: Optional[int] = None) -> list[dict]:
+def search(
+    filters: SearchFilters,
+    early_exit: Optional[int] = None,
+    skip_scraping: bool = False,
+) -> list[dict]:
     """Punto de entrada principal.
 
     Retorna lista de dicts ordenados por score DESC.
     early_exit: si se indica (plan free), scraping de 1 página por portal en paralelo.
+    skip_scraping: cuando el frontend envía extra_filters, solo consulta la DB.
     """
+    if skip_scraping:
+        logger.info("[search_service] Refinamiento: DB-only, sin scraping.")
+        return _query_db(filters)
+
     fhash = filters.filters_hash()
     barrios_str = ",".join(filters.barrios)
 
@@ -162,6 +171,14 @@ def _query_db(filters: SearchFilters) -> list[dict]:
 
     if filters.balcon is True:
         conditions.append("balcon = 1")
+
+    if filters.antiguedad_max is not None:
+        conditions.append("(antiguedad IS NULL OR antiguedad <= ?)")
+        params.append(filters.antiguedad_max)
+
+    if filters.expensas_max is not None:
+        conditions.append("(expensas IS NULL OR expensas <= ?)")
+        params.append(filters.expensas_max)
 
     where = " AND ".join(conditions)
     sql = f"SELECT * FROM publicaciones WHERE {where} ORDER BY score DESC"
