@@ -426,18 +426,44 @@ class ZonapropScraper(BaseScraper):
             if mpics:
                 first = mpics[0]
                 if isinstance(first, dict):
-                    return first.get("url") or first.get("src")
+                    candidate = first.get("url") or first.get("src") or first.get("webp")
+                    if isinstance(candidate, str) and candidate.strip():
+                        return candidate
+                if isinstance(first, str):
+                    return first
+            mimages = multimedia.get("images") or []
+            if isinstance(mimages, list) and mimages:
+                first = mimages[0]
+                if isinstance(first, dict):
+                    candidate = first.get("url") or first.get("src") or first.get("webp")
+                    if isinstance(candidate, str) and candidate.strip():
+                        return candidate
                 if isinstance(first, str):
                     return first
         # Ruta 3: photos / visuals / images
-        for key in ("photos", "visuals", "images"):
+        for key in ("photos", "visuals", "images", "covers", "cover"):
             photos = posting.get(key) or []
+            if isinstance(photos, dict):
+                candidate = photos.get("url") or photos.get("src") or photos.get("webp")
+                if isinstance(candidate, str) and candidate.strip():
+                    return candidate
             if photos:
                 first = photos[0]
                 if isinstance(first, dict):
-                    return first.get("url") or first.get("src")
+                    candidate = first.get("url") or first.get("src") or first.get("webp")
+                    if isinstance(candidate, str) and candidate.strip():
+                        return candidate
                 if isinstance(first, str):
                     return first
+        # Ruta 4: claves planas
+        for key in ("cover", "image", "imageUrl", "pictureUrl", "thumbnail"):
+            v = posting.get(key)
+            if isinstance(v, str) and v.strip():
+                return v
+            if isinstance(v, dict):
+                candidate = v.get("url") or v.get("src") or v.get("webp")
+                if isinstance(candidate, str) and candidate.strip():
+                    return candidate
         return None
 
     def _extract_price_from_json(self, posting: dict) -> Optional[float]:
@@ -580,6 +606,22 @@ class ZonapropScraper(BaseScraper):
             cochera = self._detect_bool(full_text, ["cochera", "garage", "garaje"])
             amenities_list = self._extract_amenities(full_text)
 
+            # Imagen desde HTML (soporta lazy-loading y srcset)
+            img_el = card.select_one("img")
+            imagen_url = None
+            if img_el:
+                imagen_url = (
+                    img_el.get("src")
+                    or img_el.get("data-src")
+                    or img_el.get("data-original")
+                    or img_el.get("data-lazy")
+                    or img_el.get("data-lazy-src")
+                )
+                if (not imagen_url) and img_el.get("srcset"):
+                    srcset = img_el.get("srcset", "")
+                    first = srcset.split(",")[0].strip().split(" ")[0]
+                    imagen_url = first or None
+
             return Publicacion(
                 id_publicacion=id_pub,
                 portal=PORTAL,
@@ -600,6 +642,7 @@ class ZonapropScraper(BaseScraper):
                 cochera=cochera,
                 amenities=", ".join(amenities_list) if amenities_list else None,
                 descripcion=full_text[:2000],
+                imagen_url=imagen_url,
             )
 
         except Exception as e:

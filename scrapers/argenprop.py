@@ -353,12 +353,18 @@ class ArgenpropScraper(BaseScraper):
     @staticmethod
     def _extract_image_url_from_item(item: dict) -> Optional[str]:
         """Extrae la URL de la imagen principal del item JSON de Argenprop."""
-        for key in ("photos", "pictures", "images"):
+        for key in ("photos", "pictures", "images", "covers", "cover"):
             val = item.get(key)
+            if isinstance(val, dict):
+                candidate = val.get("url") or val.get("src") or val.get("localUrl")
+                if isinstance(candidate, str) and candidate.strip():
+                    return candidate
             if isinstance(val, list) and val:
                 first = val[0]
                 if isinstance(first, dict):
-                    return first.get("url") or first.get("src") or first.get("localUrl")
+                    candidate = first.get("url") or first.get("src") or first.get("localUrl") or first.get("webp")
+                    if isinstance(candidate, str) and candidate.strip():
+                        return candidate
                 if isinstance(first, str):
                     return first
         multimedia = item.get("multimedia") or {}
@@ -366,8 +372,25 @@ class ArgenpropScraper(BaseScraper):
             pics = multimedia.get("pictures") or []
             if pics:
                 first = pics[0]
-                return first.get("url") or first.get("src") if isinstance(first, dict) else first
+                if isinstance(first, dict):
+                    candidate = first.get("url") or first.get("src") or first.get("localUrl")
+                    if isinstance(candidate, str) and candidate.strip():
+                        return candidate
+                if isinstance(first, str):
+                    return first
+
+        # Variantes de campos de portada usados en algunos payloads
+        for k in ("cover", "image", "imageUrl", "pictureUrl", "thumbnail"):
+            v = item.get(k)
+            if isinstance(v, str) and v.strip():
+                return v
+            if isinstance(v, dict):
+                candidate = v.get("url") or v.get("src") or v.get("localUrl")
+                if isinstance(candidate, str) and candidate.strip():
+                    return candidate
         return None
+
+    def _extract_price(self, item: dict) -> Optional[float]:
         """Extrae el precio USD de las distintas estructuras posibles."""
         # Estructura con operaciones
         for key in ("operationTypes", "operations", "priceOperationTypes"):
@@ -496,9 +519,21 @@ class ArgenpropScraper(BaseScraper):
             cochera = self._detect_bool(full_text, ["cochera", "garage"])
             amenities_list = self._extract_amenities(full_text)
 
-            # Imagen desde HTML
-            img_el = card.select_one("img[src]:not([src=''])")
-            imagen_url = img_el.get("src") if img_el else None
+            # Imagen desde HTML (soporta lazy-loading y srcset)
+            img_el = card.select_one("img")
+            imagen_url = None
+            if img_el:
+                imagen_url = (
+                    img_el.get("src")
+                    or img_el.get("data-src")
+                    or img_el.get("data-original")
+                    or img_el.get("data-lazy")
+                    or img_el.get("data-lazy-src")
+                )
+                if (not imagen_url) and img_el.get("srcset"):
+                    srcset = img_el.get("srcset", "")
+                    first = srcset.split(",")[0].strip().split(" ")[0]
+                    imagen_url = first or None
 
             return Publicacion(
                 id_publicacion=id_pub,

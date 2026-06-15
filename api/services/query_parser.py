@@ -158,6 +158,7 @@ def parse_query(text: str) -> SearchFilters:
         ambientes_min=ambientes_min,
         ambientes_max=ambientes_max,
         balcon=_parse_balcon(t),
+        terraza=_parse_terraza(t),
     )
 
 
@@ -224,13 +225,14 @@ def _parse_precio_max(t: str) -> Optional[int]:
 
 def _parse_m2_min(t: str) -> Optional[int]:
     for pat in [
-        r"desde\s+(\d+(?:[.,]\d+)?)\s*m[²2]?",
-        r"a\s+partir\s+de\s+(\d+(?:[.,]\d+)?)\s*m[²2]?",
-        r"(?:m[ií]nimo|al\s+menos|por\s+lo\s+menos)\s+(\d+(?:[.,]\d+)?)\s*m[²2]?",
-        r"m[aá]s\s+de\s+(\d+(?:[.,]\d+)?)\s*m[²2]?",
-        r"(\d+(?:[.,]\d+)?)\s*m[²2]\s*(?:m[ií]nimo|o\s+m[aá]s)",
+        r"desde\s+(\d+(?:[.,]\d+)?)\s*m[²23]?",
+        r"a\s+partir\s+de\s+(\d+(?:[.,]\d+)?)\s*m[²23]?",
+        r"(?:m[ií]nimo|al\s+menos|por\s+lo\s+menos)\s+(\d+(?:[.,]\d+)?)\s*m[²23]?",
+        r"m[aá]s\s+de\s+(\d+(?:[.,]\d+)?)\s*m[²23]?",
+        r"mayor\s+de\s+(\d+(?:[.,]\d+)?)\s*m[²23]?",
+        r"(\d+(?:[.,]\d+)?)\s*m[²23]\s*(?:m[ií]nimo|o\s+m[aá]s)",
         r"superficie\s+(?:de\s+)?(\d+(?:[.,]\d+)?)",
-        r"(\d+(?:[.,]\d+)?)\s*m[²2]\s+(?:como\s+)?m[ií]nimo",
+        r"(\d+(?:[.,]\d+)?)\s*m[²23]\s+(?:como\s+)?m[ií]nimo",
     ]:
         m = re.search(pat, t)
         if m:
@@ -243,9 +245,9 @@ def _parse_m2_min(t: str) -> Optional[int]:
 
 def _parse_m2_max(t: str) -> Optional[int]:
     for pat in [
-        r"hasta\s+(\d+(?:[.,]\d+)?)\s*m[²2]?",
-        r"(\d+(?:[.,]\d+)?)\s*m[²2]\s*(?:como\s+)?m[aá]ximo",
-        r"m[aá]ximo\s+(\d+(?:[.,]\d+)?)\s*m[²2]?",
+        r"hasta\s+(\d+(?:[.,]\d+)?)\s*m[²23]?",
+        r"(\d+(?:[.,]\d+)?)\s*m[²23]\s*(?:como\s+)?m[aá]ximo",
+        r"m[aá]ximo\s+(\d+(?:[.,]\d+)?)\s*m[²23]?",
     ]:
         m = re.search(pat, t)
         if m:
@@ -269,6 +271,14 @@ def _parse_balcon(t: str) -> Optional[bool]:
     if re.search(r"con\s+balc[oó]n|balc[oó]n", t):
         return True
     if re.search(r"sin\s+balc[oó]n", t):
+        return False
+    return None
+
+
+def _parse_terraza(t: str) -> Optional[bool]:
+    if re.search(r"con\s+terraza|terraza", t):
+        return True
+    if re.search(r"sin\s+terraza", t):
         return False
     return None
 

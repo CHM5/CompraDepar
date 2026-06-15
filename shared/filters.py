@@ -53,6 +53,7 @@ class SearchFilters(BaseModel):
 
     # Características
     balcon: Optional[bool] = None
+    terraza: Optional[bool] = None
     cochera: Optional[bool] = None
 
     # Antigüedad máxima en años
@@ -75,8 +76,12 @@ class SearchFilters(BaseModel):
             or self.m2_min is not None
             or self.m2_max is not None
             or self.ambientes_min is not None
+            or self.ambientes_max is not None
             or self.balcon is not None
+            or self.terraza is not None
             or self.cochera is not None
+            or self.antiguedad_max is not None
+            or self.expensas_max is not None
         )
 
     def filters_hash(self) -> str:
@@ -92,6 +97,10 @@ class SearchFilters(BaseModel):
             "ambmin": self.ambientes_min,
             "ambmax": self.ambientes_max,
             "balcon": self.balcon,
+            "terraza": self.terraza,
+            "cochera": self.cochera,
+            "antiguedad_max": self.antiguedad_max,
+            "expensas_max": self.expensas_max,
         }
         return hashlib.md5(
             json.dumps(key, sort_keys=True, ensure_ascii=False).encode()

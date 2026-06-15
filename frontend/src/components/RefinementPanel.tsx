@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronUp, ChevronDown, SlidersHorizontal, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { SlidersHorizontal, Loader2 } from "lucide-react";
 import type { ExtraFilters, FiltersApplied } from "@/types/property";
 import { cn } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface FormState {
+  barrios: string[];
   operacion: "venta" | "alquiler";
   ambientes_min: number | null;
   ambientes_max: number | null;
@@ -16,15 +17,27 @@ interface FormState {
   m2_min: string;
   m2_max: string;
   balcon: boolean;
+  terraza: boolean;
   cochera: boolean;
   antiguedad_max: string;
   expensas_max: string;
 }
 
+const CABA_BARRIOS = [
+  "Agronomía", "Almagro", "Balvanera", "Barracas", "Belgrano", "Boedo", "Caballito", "Chacarita",
+  "Coghlan", "Colegiales", "Constitución", "Flores", "Floresta", "La Boca", "La Paternal", "Liniers",
+  "Mataderos", "Monserrat", "Monte Castro", "Nueva Pompeya", "Núñez", "Palermo", "Parque Avellaneda",
+  "Parque Chacabuco", "Parque Chas", "Parque Patricios", "Puerto Madero", "Recoleta", "Retiro", "Saavedra",
+  "San Cristóbal", "San Nicolás", "San Telmo", "Vélez Sársfield", "Versalles", "Villa Crespo", "Villa del Parque",
+  "Villa Devoto", "Villa General Mitre", "Villa Lugano", "Villa Luro", "Villa Ortúzar", "Villa Pueyrredón",
+  "Villa Real", "Villa Riachuelo", "Villa Santa Rita", "Villa Soldati", "Villa Urquiza",
+];
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function buildInitialForm(f: FiltersApplied): FormState {
   return {
+    barrios: Array.isArray(f.barrios) ? f.barrios : [],
     operacion: (f.operacion as "venta" | "alquiler") ?? "venta",
     ambientes_min: f.ambientes_min ?? null,
     ambientes_max: f.ambientes_max ?? null,
@@ -33,6 +46,7 @@ function buildInitialForm(f: FiltersApplied): FormState {
     m2_min: f.m2_min != null ? String(f.m2_min) : "",
     m2_max: f.m2_max != null ? String(f.m2_max) : "",
     balcon: f.balcon === true,
+    terraza: f.terraza === true,
     cochera: f.cochera === true,
     antiguedad_max: f.antiguedad_max != null ? String(f.antiguedad_max) : "",
     expensas_max: f.expensas_max != null ? String(f.expensas_max) : "",
@@ -46,13 +60,16 @@ function toInt(s: string): number | null {
 
 function countActive(form: FormState, initial: FiltersApplied): number {
   let n = 0;
+  if ((form.barrios ?? []).join("|") !== (initial.barrios ?? []).join("|")) n++;
   if (form.operacion !== (initial.operacion ?? "venta")) n++;
   if (form.ambientes_min !== (initial.ambientes_min ?? null)) n++;
+  if (form.ambientes_max !== (initial.ambientes_max ?? null)) n++;
   if (form.precio_min && toInt(form.precio_min) !== initial.precio_min) n++;
   if (form.precio_max && toInt(form.precio_max) !== initial.precio_max) n++;
   if (form.m2_min && toInt(form.m2_min) !== initial.m2_min) n++;
   if (form.m2_max && toInt(form.m2_max) !== initial.m2_max) n++;
   if (form.balcon && !initial.balcon) n++;
+  if (form.terraza && !initial.terraza) n++;
   if (form.cochera && !initial.cochera) n++;
   if (form.antiguedad_max) n++;
   if (form.expensas_max) n++;
@@ -126,11 +143,24 @@ const AMB_OPTS: { label: string; min: number; max: number | null }[] = [
 ];
 
 export function RefinementPanel({ initialFilters, onApply, isLoading }: Props) {
-  const [open, setOpen] = useState(true);
   const [form, setForm] = useState<FormState>(() => buildInitialForm(initialFilters));
+
+  useEffect(() => {
+    setForm(buildInitialForm(initialFilters));
+  }, [initialFilters]);
 
   function set<K extends keyof FormState>(key: K, val: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: val }));
+  }
+
+  function toggleBarrio(barrio: string) {
+    setForm((prev) => {
+      const exists = prev.barrios.includes(barrio);
+      return {
+        ...prev,
+        barrios: exists ? prev.barrios.filter((b) => b !== barrio) : [...prev.barrios, barrio],
+      };
+    });
   }
 
   function selectAmb(min: number, max: number | null) {
@@ -148,6 +178,7 @@ export function RefinementPanel({ initialFilters, onApply, isLoading }: Props) {
 
   function handleApply() {
     const extra: ExtraFilters = {
+      barrios: form.barrios.length ? form.barrios : null,
       operacion: form.operacion,
       precio_min: toInt(form.precio_min),
       precio_max: toInt(form.precio_max),
@@ -156,6 +187,7 @@ export function RefinementPanel({ initialFilters, onApply, isLoading }: Props) {
       ambientes_min: form.ambientes_min,
       ambientes_max: form.ambientes_max,
       balcon: form.balcon ? true : null,
+      terraza: form.terraza ? true : null,
       cochera: form.cochera ? true : null,
       antiguedad_max: toInt(form.antiguedad_max),
       expensas_max: toInt(form.expensas_max),
@@ -172,30 +204,47 @@ export function RefinementPanel({ initialFilters, onApply, isLoading }: Props) {
   return (
     <div className="w-full overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
       {/* Header */}
-      <button
-        type="button"
-        onClick={() => setOpen((p) => !p)}
-        className="flex w-full items-center justify-between gap-2 px-5 py-3.5 transition-colors hover:bg-neutral-50"
-      >
+      <div className="flex w-full items-center justify-between gap-2 px-5 py-3.5">
         <div className="flex items-center gap-2">
           <SlidersHorizontal className="h-4 w-4 text-neutral-500" />
-          <span className="text-sm font-semibold text-neutral-700">Refinar búsqueda</span>
+          <span className="text-sm font-semibold text-neutral-700">Refinar búsqueda (fijo)</span>
           {activeCount > 0 && (
             <span className="rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
               {activeCount}
             </span>
           )}
         </div>
-        {open ? (
-          <ChevronUp className="h-4 w-4 text-neutral-400" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-neutral-400" />
-        )}
-      </button>
+      </div>
 
-      {open && (
-        <div className="border-t border-neutral-100 px-5 pb-5 pt-4">
+      <div className="border-t border-neutral-100 px-5 pb-5 pt-4">
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+
+            {/* Barrios CABA */}
+            <div className="sm:col-span-2 lg:col-span-3">
+              <Label>Barrios CABA</Label>
+              <div className="max-h-32 overflow-y-auto rounded-xl border border-neutral-200 p-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {CABA_BARRIOS.map((b) => {
+                    const active = form.barrios.includes(b);
+                    return (
+                      <button
+                        key={b}
+                        type="button"
+                        onClick={() => toggleBarrio(b)}
+                        className={cn(
+                          "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all",
+                          active
+                            ? "border-blue-600 bg-blue-600 text-white"
+                            : "border-neutral-200 bg-white text-neutral-600 hover:border-blue-300 hover:text-blue-700",
+                        )}
+                      >
+                        {b}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
 
             {/* Operación */}
             <div>
@@ -251,6 +300,7 @@ export function RefinementPanel({ initialFilters, onApply, isLoading }: Props) {
                 {(
                   [
                     { key: "balcon" as const, label: "🌿 Balcón" },
+                    { key: "terraza" as const, label: "🏡 Terraza" },
                     { key: "cochera" as const, label: "🚗 Cochera" },
                   ] as const
                 ).map(({ key, label }) => (
@@ -372,8 +422,7 @@ export function RefinementPanel({ initialFilters, onApply, isLoading }: Props) {
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

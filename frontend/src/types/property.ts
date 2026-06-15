@@ -18,6 +18,7 @@ export interface PropertyResult {
 }
 
 export interface ExtraFilters {
+  barrios?: string[] | null;
   operacion?: string | null;
   precio_min?: number | null;
   precio_max?: number | null;
@@ -26,6 +27,7 @@ export interface ExtraFilters {
   ambientes_min?: number | null;
   ambientes_max?: number | null;
   balcon?: boolean | null;
+  terraza?: boolean | null;
   cochera?: boolean | null;
   antiguedad_max?: number | null;
   expensas_max?: number | null;
@@ -42,6 +44,7 @@ export interface FiltersApplied {
   ambientes_min: number | null;
   ambientes_max: number | null;
   balcon: boolean | null;
+  terraza: boolean | null;
   cochera: boolean | null;
   antiguedad_max: number | null;
   expensas_max: number | null;

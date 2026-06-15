@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import Image from "next/image";
 import { SearchBox } from "@/components/SearchBox";
 import { ResultsList } from "@/components/ResultsList";
 import { RefinementPanel } from "@/components/RefinementPanel";
@@ -59,9 +60,19 @@ export default function HomePage() {
           hasSearched ? "mb-6" : "mb-10"
         }`}
       >
-        <h1 className="mb-2 text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">
-          Depar Finder
-        </h1>
+        <div className="mb-2 flex items-center justify-center gap-2">
+          <Image
+            src="/depar-finder-logo.svg"
+            alt="Depar Finder"
+            width={36}
+            height={36}
+            className="h-9 w-9 rounded-lg"
+            priority
+          />
+          <h1 className="text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">
+            Depar Finder
+          </h1>
+        </div>
         {!hasSearched && (
           <p className="mx-auto mt-2 max-w-lg text-base text-neutral-500">
             Buscá propiedades o preguntame sobre el mercado inmobiliario de CABA.
@@ -108,7 +119,7 @@ export default function HomePage() {
 
       {/* Refinement panel — slides in after first search results */}
       {showRefinement && (
-        <div className="mx-auto mt-5 max-w-3xl">
+        <div className="sticky top-3 z-20 mx-auto mt-5 max-w-3xl">
           <RefinementPanel
             key={lastQuery}
             initialFilters={data.filters_applied}

@@ -41,6 +41,19 @@ logger = logging.getLogger(__name__)
 FREE_LIMIT = 20
 
 
+def _normalize_image_url(url: Optional[str]) -> Optional[str]:
+    if not url:
+        return None
+    u = str(url).strip()
+    if not u:
+        return None
+    if u.startswith("//"):
+        return f"https:{u}"
+    if u.startswith("http://"):
+        return "https://" + u[len("http://"):]
+    return u
+
+
 def _non_search_response(plan: str, intent: Intent) -> SearchResponse:
     """Retorna una respuesta válida con 0 resultados para intenciones no-SEARCH."""
     return SearchResponse(
@@ -147,9 +160,9 @@ def search(
         skip_scraping = True
         ef: ExtraFilters = body.extra_filters
         for fname in (
-            "operacion", "precio_min", "precio_max",
+            "barrios", "operacion", "precio_min", "precio_max",
             "m2_min", "m2_max", "ambientes_min", "ambientes_max",
-            "balcon", "cochera", "antiguedad_max", "expensas_max",
+            "balcon", "terraza", "cochera", "antiguedad_max", "expensas_max",
         ):
             val = getattr(ef, fname, None)
             if val is not None:
@@ -200,7 +213,7 @@ def search(
             cochera=bool(r.get("cochera", 0)),
             url=r.get("url", ""),
             estado=r.get("estado", "NUEVA"),
-            imagen_url=r.get("imagen_url"),
+            imagen_url=_normalize_image_url(r.get("imagen_url")),
         )
         for i, r in enumerate(page)
     ]

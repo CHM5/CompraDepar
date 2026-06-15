@@ -172,6 +172,12 @@ def _query_db(filters: SearchFilters) -> list[dict]:
     if filters.balcon is True:
         conditions.append("balcon = 1")
 
+    if filters.terraza is True:
+        conditions.append("(balcon = 1 OR LOWER(COALESCE(descripcion, '')) LIKE '%terraza%' OR LOWER(COALESCE(amenities, '')) LIKE '%terraza%')")
+
+    if filters.cochera is True:
+        conditions.append("cochera = 1")
+
     if filters.antiguedad_max is not None:
         conditions.append("(antiguedad IS NULL OR antiguedad <= ?)")
         params.append(filters.antiguedad_max)
@@ -181,7 +187,10 @@ def _query_db(filters: SearchFilters) -> list[dict]:
         params.append(filters.expensas_max)
 
     where = " AND ".join(conditions)
-    sql = f"SELECT * FROM publicaciones WHERE {where} ORDER BY score DESC"
+    sql = (
+        f"SELECT * FROM publicaciones WHERE {where} "
+        "ORDER BY (imagen_url IS NOT NULL AND TRIM(imagen_url) != '') DESC, score DESC"
+    )
 
     logger.debug("[search_service] SQL: %s | params: %s", sql, params)
 

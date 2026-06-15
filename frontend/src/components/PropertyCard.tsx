@@ -70,7 +70,12 @@ export function PropertyCard({ property }: PropertyCardProps) {
             alt={barrio ?? portal}
             className="h-full w-full object-cover"
             referrerPolicy="no-referrer"
-            onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
+            onError={(e) => {
+              const target = e.currentTarget;
+              target.onerror = null;
+              target.src = "/depar-finder-logo.svg";
+              target.className = "h-full w-full object-contain p-6 bg-neutral-50";
+            }}
           />
         ) : (
           <div className="flex h-full items-center justify-center">

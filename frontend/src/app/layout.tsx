@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   title: "Depar Finder — Departamentos en CABA",
   description:
     "Buscá departamentos en Capital Federal usando lenguaje natural. Resultados de Zonaprop, Argenprop, MEL y más.",
+  icons: {
+    icon: "/depar-finder-logo.svg",
+  },
 };
 
 export default function RootLayout({
