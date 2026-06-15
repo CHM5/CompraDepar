@@ -156,6 +156,10 @@ def _query_db(filters: SearchFilters) -> list[dict]:
         conditions.append("ambientes >= ?")
         params.append(filters.ambientes_min)
 
+    if filters.ambientes_max is not None:
+        conditions.append("ambientes <= ?")
+        params.append(filters.ambientes_max)
+
     if filters.balcon is True:
         conditions.append("balcon = 1")
 

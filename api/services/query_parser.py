@@ -57,10 +57,96 @@ _BARRIO_ALIASES: dict[str, str] = {
 
 _ALL_CANONICAL = sorted(set(_BARRIO_ALIASES.values()), key=len, reverse=True)
 
+# Calles principales de CABA y los barrios por los que pasan
+_CALLES_A_BARRIOS: dict[str, list[str]] = {
+    "callao":           ["Balvanera", "Tribunales", "Recoleta", "Barrio Norte"],
+    "corrientes":       ["Balvanera", "Almagro", "Tribunales", "San Nicolás"],
+    "santa fe":         ["Barrio Norte", "Recoleta", "Palermo"],
+    "rivadavia":        ["Balvanera", "Almagro", "Caballito", "Flores"],
+    "cordoba":          ["Balvanera", "Almagro", "Palermo", "San Nicolás"],
+    "córdoba":          ["Balvanera", "Almagro", "Palermo", "San Nicolás"],
+    "pueyrredon":       ["Almagro", "Recoleta", "Barrio Norte"],
+    "cabildo":          ["Belgrano", "Núñez"],
+    "scalabrini ortiz": ["Villa Crespo", "Palermo"],
+    "thames":           ["Villa Crespo", "Palermo"],
+    "malabia":          ["Palermo", "Villa Crespo"],
+    "honduras":         ["Palermo"],
+    "gorriti":          ["Palermo"],
+    "el salvador":      ["Palermo"],
+    "medrano":          ["Almagro"],
+    "warnes":           ["Villa Crespo", "Chacarita"],
+    "lerma":            ["Villa Crespo"],
+    "niceto vega":      ["Palermo", "Villa Crespo"],
+    "angel gallardo":   ["Almagro", "Parque Chas"],
+    "donado":           ["Colegiales", "Belgrano"],
+    "juramento":        ["Belgrano"],
+    "vidal":            ["Belgrano"],
+    "zapiola":          ["Colegiales", "Belgrano"],
+    "julian alvarez":   ["Palermo", "Villa Crespo"],
+    "humboldt":         ["Palermo"],
+    "fitz roy":         ["Palermo", "Villa Crespo"],
+    "serrano":          ["Palermo"],
+    "uriarte":          ["Palermo"],
+    "armenia":          ["Palermo"],
+    "paraguay":         ["Palermo", "Recoleta"],
+    "laprida":          ["Recoleta"],
+    "beruti":           ["Barrio Norte", "Recoleta"],
+    "juncal":           ["Barrio Norte", "Recoleta"],
+    "libertad":         ["Barrio Norte", "Tribunales"],
+    "talcahuano":       ["Tribunales", "San Nicolás"],
+    "lavalle":          ["San Nicolás", "Tribunales"],
+    "viamonte":         ["San Nicolás", "Tribunales"],
+    "uruguay":          ["Balvanera", "Tribunales"],
+    "sarmiento":        ["San Nicolás", "Almagro"],
+    "entre rios":       ["Balvanera", "Constitución"],
+    "entre ríos":       ["Balvanera", "Constitución"],
+    "independencia":    ["San Cristóbal", "Balvanera"],
+    "defensa":          ["San Telmo"],
+    "florida":          ["San Nicolás"],
+    "maipu":            ["San Nicolás", "Retiro"],
+    "suipacha":         ["San Nicolás", "Retiro"],
+}
+
+
+def _parse_barrios_from_interseccion(t: str) -> list[str]:
+    """Detecta calles CABA en el texto y las mapea a barrios.
+
+    Soporta patrones como 'callao y corrientes', 'en callao', 'santa fe y pueyrredon'.
+    """
+    # Buscar dos calles: "X y Y" o "X e Y"
+    # Ordenar por longitud desc para que coincidan las frases más largas primero
+    calles_sorted = sorted(_CALLES_A_BARRIOS.keys(), key=len, reverse=True)
+    calles_encontradas: list[str] = []
+    for calle in calles_sorted:
+        if re.search(rf"\b{re.escape(calle)}\b", t):
+            calles_encontradas.append(calle)
+
+    if not calles_encontradas:
+        return []
+
+    if len(calles_encontradas) >= 2:
+        # Buscar barrios comunes entre las dos primeras calles
+        b1 = set(_CALLES_A_BARRIOS[calles_encontradas[0]])
+        b2 = set(_CALLES_A_BARRIOS[calles_encontradas[1]])
+        comunes = list(b1 & b2)
+        if comunes:
+            return comunes[:2]  # max 2 barrios
+        # Sin intersección: usar el primero de cada calle
+        return [
+            _CALLES_A_BARRIOS[calles_encontradas[0]][0],
+            _CALLES_A_BARRIOS[calles_encontradas[1]][0],
+        ]
+
+    # Solo una calle encontrada: devolver el primer barrio
+    return [_CALLES_A_BARRIOS[calles_encontradas[0]][0]]
+
 
 def parse_query(text: str) -> SearchFilters:
     """Convierte una consulta en lenguaje natural a SearchFilters."""
     t = _normalize(text)
+    ambientes_min = _parse_ambientes(t)
+    # monoambiente = exactamente 1 ambiente (no 2, 3, 4...)
+    ambientes_max = 1 if "monoambiente" in t else None
     return SearchFilters(
         operacion=_parse_operacion(t),
         tipo="departamento",
@@ -69,7 +155,8 @@ def parse_query(text: str) -> SearchFilters:
         precio_max=_parse_precio_max(t),
         m2_min=_parse_m2_min(t),
         m2_max=_parse_m2_max(t),
-        ambientes_min=_parse_ambientes(t),
+        ambientes_min=ambientes_min,
+        ambientes_max=ambientes_max,
         balcon=_parse_balcon(t),
     )
 
@@ -96,6 +183,9 @@ def _parse_barrios(t: str) -> list[str]:
         if canonical.lower() in t and canonical not in seen:
             found.append(canonical)
             seen.add(canonical)
+    # Fallback: detectar calles / intersecciones cuando no se encontró ningún barrio
+    if not found:
+        found = _parse_barrios_from_interseccion(t)
     return found
 
 

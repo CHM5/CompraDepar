@@ -397,7 +397,7 @@ class ZonapropScraper(BaseScraper):
                 orientacion=str(orientacion).capitalize() if orientacion else None,
                 balcon=balcon,
                 cochera=cochera,
-                amenities=\", \".join(amenities_list) if amenities_list else None,
+                amenities=amenities_list and ", ".join(amenities_list),
                 descripcion=descripcion[:2000] if descripcion else None,
                 fecha_publicacion=fecha_pub,
                 imagen_url=imagen_url,

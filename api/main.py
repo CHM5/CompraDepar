@@ -126,6 +126,15 @@ def search(
     intent = detect_intent(body.query)
     logger.info("[API] intent=%s | plan=%s | query=%r", intent.value, plan, body.query)
 
+    # Pregunta analítica sobre el mercado → GPT-4o-mini con stats de la DB
+    if intent == Intent.AI_CHAT:
+        ai_message = chat_service.chat(body.query)
+        return SearchResponse(
+            success=True, plan=plan, total=0, truncated=False,
+            results=[], filters_applied={},
+            intent=intent.value, message=ai_message,
+        )
+
     if intent != Intent.SEARCH:
         return _non_search_response(plan, intent)
 

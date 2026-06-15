@@ -61,9 +61,70 @@ function FiltersPanel({ filters }: { filters: FiltersApplied }) {
 const SUGGESTED_PROMPTS = [
   "Estoy buscando comprar un departamento en Palermo",
   "2 ambientes en Belgrano hasta USD 120k",
-  "Monoambiente en Recoleta desde 35m² con balcón",
+  "¿Cuánto sale el m² en Recoleta?",
   "Villa Crespo o Almagro, 3 ambientes hasta 110k",
 ];
+
+const SUGGESTED_SEARCH_AFTER_AI = [
+  "Quiero comprar en Palermo hasta 120k USD",
+  "2 ambientes en Almagro desde 40 m²",
+  "Monoambiente en Recoleta con balcón",
+  "Departamento en Villa Crespo hasta 90k",
+];
+
+/** Burbuja violeta para respuestas analíticas de IA */
+function AiChatReply({
+  message,
+  onSearch,
+}: {
+  message: string;
+  onSearch: (q: string) => void;
+}) {
+  return (
+    <div className="mx-auto max-w-xl space-y-5">
+      <div className="flex items-start gap-3">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white shadow-sm">
+          <Sparkles className="h-4 w-4" />
+        </div>
+        <div className="rounded-2xl rounded-tl-sm bg-gradient-to-br from-violet-50 to-indigo-50 px-4 py-3 shadow-sm border border-violet-100">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-500">
+            Análisis IA
+          </p>
+          <div className="text-sm text-neutral-800 leading-relaxed space-y-1">
+            {message.split("\n").filter(Boolean).map((line, i) => {
+              const parts = line.split(/(\*\*[^*]+\*\*)/);
+              return (
+                <p key={i}>
+                  {parts.map((p, j) =>
+                    p.startsWith("**") && p.endsWith("**") ? (
+                      <strong key={j} className="font-semibold text-neutral-900">{p.slice(2, -2)}</strong>
+                    ) : (
+                      <span key={j}>{p}</span>
+                    )
+                  )}
+                </p>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      <div className="pl-11 space-y-2">
+        <p className="text-xs text-neutral-400 font-medium uppercase tracking-wide">Buscar propiedades</p>
+        <div className="flex flex-wrap gap-2">
+          {SUGGESTED_SEARCH_AFTER_AI.map((q) => (
+            <button
+              key={q}
+              onClick={() => onSearch(q)}
+              className="rounded-full border border-violet-100 bg-violet-50 px-3.5 py-1.5 text-xs text-violet-700 transition-colors hover:bg-violet-100 hover:border-violet-200"
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SkeletonCard() {
   return (
@@ -191,8 +252,15 @@ export function ResultsList({
     );
   }
 
-  // Respuesta conversacional: el backend entendió la intención pero no es una búsqueda
-  if (data && !data.success && data.message) {
+  // Respuesta conversacional: el backend respondió con mensaje (no es una búsqueda con resultados)
+  if (data && data.message && data.intent !== "search") {
+    if (data.intent === "ai_chat") {
+      return (
+        <div className="py-8">
+          <AiChatReply message={data.message} onSearch={onSearch} />
+        </div>
+      );
+    }
     return (
       <div className="py-8">
         <ConversationalReply message={data.message} onSearch={onSearch} />

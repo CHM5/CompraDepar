@@ -49,6 +49,7 @@ class SearchFilters(BaseModel):
 
     # Habitaciones
     ambientes_min: Optional[int] = None
+    ambientes_max: Optional[int] = None
 
     # Características
     balcon: Optional[bool] = None
@@ -85,6 +86,8 @@ class SearchFilters(BaseModel):
             "pmax": self.precio_max,
             "m2min": self.m2_min,
             "m2max": self.m2_max,
+            "ambmin": self.ambientes_min,
+            "ambmax": self.ambientes_max,
             "balcon": self.balcon,
         }
         return hashlib.md5(

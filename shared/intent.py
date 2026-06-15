@@ -17,6 +17,7 @@ from enum import Enum
 
 class Intent(str, Enum):
     SEARCH   = "search"    # búsqueda inmobiliaria → ejecutar scrapers/DB
+    AI_CHAT  = "ai_chat"   # pregunta analítica sobre el mercado → GPT-4o-mini
     COMMAND  = "command"   # comando de sistema (top, pondera, etc.)
     GREETING = "greeting"  # saludo
     HELP     = "help"      # pedido de ayuda / ejemplos
@@ -26,7 +27,8 @@ class Intent(str, Enum):
 # ── Respuestas estándar por intención ─────────────────────────────────────────
 
 INTENT_MESSAGES: dict[Intent, str] = {
-    Intent.GREETING: "¡Hola! Contame qué propiedad estás buscando.",
+    Intent.GREETING: "¡Hola! Contame qué propiedad estás buscando o preguntame sobre el mercado.",
+    Intent.AI_CHAT: "",  # no se usa; la respuesta la genera GPT dinámicamente
     Intent.HELP: (
         "Podés buscar propiedades usando lenguaje natural. "
         "Por ejemplo: 'Quiero comprar un departamento en Belgrano desde 40 m² hasta 120.000 dólares'."
@@ -123,6 +125,47 @@ _SEARCH_PATTERNS = re.compile(
 )
 
 
+_STRONG_SEARCH_PATTERNS = re.compile(
+    r"""
+    # Verbos de acción directa — señal inequívoca de búsqueda
+    \bbusco\b | \bnecesito\b |
+    estoy\s+buscando | me\s+interesa |
+    quiero?\s+(comprar|alquilar|buscar|encontrar) |
+    quisiera\s+(comprar|alquilar) |
+    # Rango de precio explícito (sin pregunta)
+    hasta\s+(?:usd\s*)?\d[\d.,k]* |
+    desde\s+(?:usd\s*)?\d[\d.,k]* |
+    entre\s+(?:usd\s*)?\d[\d.,k]*\s+y
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+
+_AI_CHAT_PATTERNS = re.compile(
+    r"""
+    # Palabras analíticas del mercado inmobiliario
+    \bpromedio\b |
+    precio\s+(por\s+)?m[²2] |
+    valor\s+(por\s+)?m[²2] |
+    \brentabilidad\b | \btendencia\b |
+    mercado\s+inmobili[ae]rio |
+    relaci[oó]n\s+precio | mejor\s+relaci[oó]n |
+    conviene\s+(comprar|alquilar|invertir) |
+    vale\s+la\s+pena\s+(comprar|alquilar|invertir) |
+    diferencia\s+entre\s+barrios | comparar\s+barrios |
+    valoriz[ae]ci[oó]n |
+    precios?\s+(han?\s+)?(subido|bajado|ca[íi]do|aumentado) |
+    an[aá]lisis\s+del?\s+mercado |
+    m[aá]s\s+(barato|caro)\s*(?:para\s+comprar|el\s+m[²2]|zona|barrio) |
+    # Preguntas directas sobre precios de mercado
+    cu[aá]nto\s+(sale[n]?|cuesta[n]?|vale[n]?)\s+(?:el\s+)?m[²2] |
+    cu[aá]l\s+(es\s+el\s+)?(?:precio|barrio|zona)\s+m[aá]s |
+    qu[eé]\s+barrios?\s+(es|son|tiene[n]?|conviene[n]?) |
+    d[oó]nde\s+(conviene\s+comprar|es\s+m[aá]s\s+barato|es\s+m[aá]s\s+caro)
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+
+
 def detect_intent(text: str) -> Intent:
     """Clasifica la intención del usuario sin usar IA.
 
@@ -130,8 +173,10 @@ def detect_intent(text: str) -> Intent:
         1. GREETING  — saludos cortos
         2. HELP      — pedidos de ayuda/ejemplos
         3. COMMAND   — comandos de sistema
-        4. SEARCH    — búsqueda inmobiliaria
-        5. UNKNOWN   — no reconocido
+        4. SEARCH (fuerte) — acción explícita de buscar/comprar/alquilar
+        5. AI_CHAT   — preguntas analíticas sobre el mercado
+        6. SEARCH (débil) — menciones implícitas de propiedades o barrios
+        7. UNKNOWN   — no reconocido
     """
     t = text.strip()
     if not t:
@@ -146,6 +191,15 @@ def detect_intent(text: str) -> Intent:
     if _COMMAND_PATTERNS.search(t):
         return Intent.COMMAND
 
+    # Intención de comprar/alquilar explícita → siempre SEARCH
+    if _STRONG_SEARCH_PATTERNS.search(t):
+        return Intent.SEARCH
+
+    # Pregunta analítica sobre el mercado → AI_CHAT
+    if _AI_CHAT_PATTERNS.search(t):
+        return Intent.AI_CHAT
+
+    # Señales débiles: mención de propiedad/barrio sin verbo de acción
     if _SEARCH_PATTERNS.search(t):
         return Intent.SEARCH
 
