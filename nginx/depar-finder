@@ -1,0 +1,80 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# depar-finder — Nginx site config
+# Instalación:
+#   sudo cp /home/pi/apps/depar-finder/nginx/depar-finder \
+#            /etc/nginx/sites-available/depar-finder
+#   sudo ln -s /etc/nginx/sites-available/depar-finder \
+#              /etc/nginx/sites-enabled/depar-finder
+#   sudo nginx -t && sudo systemctl reload nginx
+# ══════════════════════════════════════════════════════════════════════════════
+
+server {
+    listen 80;
+    server_name 192.168.1.43 _;   # agregá tu dominio aquí cuando tengas uno
+
+    # ── Logging ───────────────────────────────────────────────────────────────
+    access_log /home/pi/apps/depar-finder/logs/nginx-access.log;
+    error_log  /home/pi/apps/depar-finder/logs/nginx-error.log warn;
+
+    # ── Seguridad básica ──────────────────────────────────────────────────────
+    server_tokens off;
+    add_header X-Content-Type-Options  nosniff;
+    add_header X-Frame-Options         SAMEORIGIN;
+    add_header X-XSS-Protection        "1; mode=block";
+    add_header Referrer-Policy         "strict-origin-when-cross-origin";
+
+    # ── Gzip ──────────────────────────────────────────────────────────────────
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css application/json application/javascript
+               text/xml application/xml application/xml+rss text/javascript
+               image/svg+xml;
+
+    # ── API → FastAPI (backend) ───────────────────────────────────────────────
+    # Todas las peticiones a /api/* y /health se redirigen al backend local.
+    location /api/ {
+        proxy_pass         http://127.0.0.1:8000/api/;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+        proxy_send_timeout 120s;
+    }
+
+    location /health {
+        proxy_pass         http://127.0.0.1:8000/health;
+        proxy_set_header   Host $host;
+        access_log off;
+    }
+
+    # ── Frontend estático (Next.js export) ───────────────────────────────────
+    root /home/pi/apps/depar-finder/frontend/out;
+
+    # Caché larga para assets con hash (_next/static/)
+    location /_next/static/ {
+        expires     1y;
+        add_header  Cache-Control "public, immutable";
+        access_log  off;
+    }
+
+    # Imágenes y fuentes estáticas
+    location ~* \.(ico|svg|png|jpg|jpeg|gif|webp|woff|woff2|ttf)$ {
+        expires    30d;
+        add_header Cache-Control "public";
+        access_log off;
+        try_files  $uri =404;
+    }
+
+    # SPA fallback: intenta el archivo, luego agrega .html, luego index.html
+    location / {
+        try_files $uri $uri.html $uri/index.html /index.html;
+    }
+}
+
+# ── HTTPS (descomentar cuando tengas dominio + Let's Encrypt) ─────────────────
+# Para activar: certbot --nginx -d tudominio.com
+# Certbot reescribirá este bloque automáticamente.
