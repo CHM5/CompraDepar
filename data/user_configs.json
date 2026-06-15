@@ -1,0 +1,41 @@
+{
+  "8779317556": {
+    "SCORE_BARRIOS": {
+      "Palermo": 60,
+      "Belgrano": 60,
+      "Villa Crespo": 40,
+      "Almagro": 40,
+      "Núñez": 35,
+      "Saavedra": 35,
+      "Barrio Norte": 45,
+      "Chacarita": 40,
+      "Coghlan": 45,
+      "Recoleta": 45
+    },
+    "SCORE_AMENITIES": {
+      "pileta": 20,
+      "sum": 20,
+      "gimnasio": 20
+    },
+    "SCORE_PISO_5_MAS": 10,
+    "PRECIO_MIN_USD": 80000,
+    "PRECIO_MAX_USD": 110000,
+    "SCORE_MINIMO_EXPORTAR": 120,
+    "BARRIOS_OBJETIVO": [
+      "Palermo",
+      "Belgrano",
+      "Villa Crespo",
+      "Almagro",
+      "Núñez",
+      "Saavedra",
+      "Caballito",
+      "Recoleta",
+      "Barrio Norte",
+      "Chacarita",
+      "Coghlan",
+      "Villa Urquiza",
+      "Colegiales",
+      "Villa del Parque"
+    ]
+  }
+}

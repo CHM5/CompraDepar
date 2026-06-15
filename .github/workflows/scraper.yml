@@ -1,0 +1,72 @@
+name: Scraper Departamentos CABA
+
+on:
+  schedule:
+    # Cada 4 horas (00:00, 04:00, 08:00, 12:00, 16:00, 20:00 UTC)
+    - cron: "0 */4 * * *"
+  workflow_dispatch:    # Permite ejecución manual desde la UI de GitHub
+
+jobs:
+  scrape:
+    name: Ejecutar scraper
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ── 1. Checkout del código ─────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Python ─────────────────────────────────────────────────────────
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # ── 3. Dependencias ───────────────────────────────────────────────────
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      # ── 4. Crear directorios necesarios ────────────────────────────────────
+      - name: Crear directorios
+        run: mkdir -p data logs
+
+      # ── 5. Restaurar base de datos cacheada (entre runs) ───────────────────
+      - name: Restaurar cache de base de datos
+        id: cache-db
+        uses: actions/cache@v4
+        with:
+          path: data/departamentos.db
+          key: departamentos-db-${{ github.run_id }}
+          restore-keys: |
+            departamentos-db-
+
+      # ── 6. Ejecutar scraper ───────────────────────────────────────────────
+      - name: Ejecutar scraper
+        env:
+          GOOGLE_SHEETS_ID: ${{ secrets.GOOGLE_SHEETS_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          LOG_LEVEL: INFO
+          DATABASE_PATH: data/departamentos.db
+        run: python main.py
+
+      # ── 7. Subir logs como artefacto ──────────────────────────────────────
+      - name: Subir logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logs-${{ github.run_number }}
+          path: logs/
+          retention-days: 7
+
+      # ── 8. Subir base de datos como artefacto ─────────────────────────────
+      - name: Subir base de datos
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: db-${{ github.run_number }}
+          path: data/departamentos.db
+          retention-days: 30
