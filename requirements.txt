@@ -7,3 +7,10 @@ python-dotenv>=1.0.1
 tenacity>=8.3.0
 cloudscraper>=1.2.71
 openai>=1.30.0         # NLU — lenguaje natural (opcional, requiere OPENAI_API_KEY)
+
+# ── API Backend ────────────────────────────────────────────────────────────────
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.0.0
+httpx>=0.27.0          # cliente async para scrapers
+aiofiles>=23.2.1
