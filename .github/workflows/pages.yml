@@ -14,6 +14,9 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -22,7 +25,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -32,9 +35,7 @@ jobs:
       - name: Build estático
         run: cd frontend && npm run build
         env:
-          # Prefijo para que los assets carguen correctamente en github.io/CompraDepar/
           NEXT_PUBLIC_BASE_PATH: /CompraDepar
-          # Apunta al backend desplegado (configurar como Secret si usás Railway/Render/etc.)
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
       - name: Subir artefacto de Pages
