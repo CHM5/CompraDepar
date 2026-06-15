@@ -101,12 +101,23 @@ fi
 
 sudo systemctl daemon-reload
 sudo systemctl enable depar-backend
-sudo systemctl restart depar-backend
-sleep 2
+sudo systemctl restart depar-backend || true
+sleep 3
 if sudo systemctl is-active --quiet depar-backend; then
     success "depar-backend corriendo"
 else
-    error "depar-backend falló al arrancar. Ver logs: journalctl -u depar-backend -n 30"
+    echo ""
+    echo "══════════════════════════════════════════════"
+    echo "  ✗ depar-backend falló al arrancar."
+    echo "  Service file instalado:"
+    echo "──────────────────────────────────────────────"
+    cat /etc/systemd/system/depar-backend.service
+    echo "──────────────────────────────────────────────"
+    echo "  Últimas líneas del journal:"
+    echo "──────────────────────────────────────────────"
+    sudo journalctl -u depar-backend -n 40 --no-pager
+    echo "══════════════════════════════════════════════"
+    exit 1
 fi
 
 # Nginx
