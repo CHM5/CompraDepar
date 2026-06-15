@@ -41,6 +41,7 @@ class Publicacion:
     amenities: Optional[str] = None
     descripcion: Optional[str] = None
     fecha_publicacion: Optional[str] = None
+    imagen_url: Optional[str] = None
 
     # ── Scoring y análisis (calculados en services/) ──────────────────────────
     score: Optional[float] = None

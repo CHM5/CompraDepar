@@ -29,15 +29,16 @@ ROOT = Path(__file__).parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from api.schemas import PropertyResult, SearchRequest, SearchResponse
+from api.schemas import PropertyResult, SearchRequest, SearchResponse, ChatRequest, ChatResponse
 from api.services.query_parser import parse_query
 from api.services import search_service
+from api.services import chat_service
 from shared.filters import SearchFilters
 from shared.intent import Intent, INTENT_MESSAGES, detect_intent
 
 logger = logging.getLogger(__name__)
 
-FREE_LIMIT = 5
+FREE_LIMIT = 20
 
 
 def _non_search_response(plan: str, intent: Intent) -> SearchResponse:
@@ -175,6 +176,7 @@ def search(
             cochera=bool(r.get("cochera", 0)),
             url=r.get("url", ""),
             estado=r.get("estado", "NUEVA"),
+            imagen_url=r.get("imagen_url"),
         )
         for i, r in enumerate(page)
     ]
@@ -188,3 +190,21 @@ def search(
         filters_applied=filters.model_dump(),
         intent=Intent.SEARCH.value,
     )
+
+
+@app.post(
+    "/api/v1/chat",
+    response_model=ChatResponse,
+    tags=["chat"],
+    summary="Chat con IA sobre el mercado inmobiliario",
+)
+def chat(
+    body: ChatRequest,
+    x_user_plan: Optional[str] = Header(default=None),
+) -> ChatResponse:
+    """
+    Responde preguntas en lenguaje natural sobre el mercado inmobiliario
+    de CABA usando GPT-4o-mini con datos en tiempo real de la base de datos.
+    """
+    message = chat_service.chat(body.query)
+    return ChatResponse(message=message)

@@ -272,6 +272,9 @@ class ZonapropScraper(BaseScraper):
             if not url:
                 url = BASE_URL
 
+            # Imagen principal
+            imagen_url = self._extract_image_url(posting)
+
             # Precio en USD
             precio_usd = self._extract_price_from_json(posting)
 
@@ -394,15 +397,48 @@ class ZonapropScraper(BaseScraper):
                 orientacion=str(orientacion).capitalize() if orientacion else None,
                 balcon=balcon,
                 cochera=cochera,
-                amenities=", ".join(amenities_list) if amenities_list else None,
+                amenities=\", \".join(amenities_list) if amenities_list else None,
                 descripcion=descripcion[:2000] if descripcion else None,
                 fecha_publicacion=fecha_pub,
+                imagen_url=imagen_url,
             )
 
         except Exception as e:
             logger.debug("[Zonaprop] Error parseando item JSON id=%s: %s",
                          posting.get("postingId", "?"), e, exc_info=True)
             return None
+
+    @staticmethod
+    def _extract_image_url(posting: dict) -> Optional[str]:
+        """Extrae la URL de la imagen principal del posting."""
+        # Ruta 1: postingPictures (más común en Zonaprop)
+        pics = posting.get("postingPictures") or []
+        if pics and isinstance(pics, list):
+            first = pics[0]
+            if isinstance(first, dict):
+                return first.get("url") or first.get("src") or first.get("picture")
+            if isinstance(first, str):
+                return first
+        # Ruta 2: multimedia.pictures
+        multimedia = posting.get("multimedia") or {}
+        if isinstance(multimedia, dict):
+            mpics = multimedia.get("pictures") or []
+            if mpics:
+                first = mpics[0]
+                if isinstance(first, dict):
+                    return first.get("url") or first.get("src")
+                if isinstance(first, str):
+                    return first
+        # Ruta 3: photos / visuals / images
+        for key in ("photos", "visuals", "images"):
+            photos = posting.get(key) or []
+            if photos:
+                first = photos[0]
+                if isinstance(first, dict):
+                    return first.get("url") or first.get("src")
+                if isinstance(first, str):
+                    return first
+        return None
 
     def _extract_price_from_json(self, posting: dict) -> Optional[float]:
         """Extrae el precio USD de las distintas estructuras de precio."""

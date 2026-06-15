@@ -298,6 +298,9 @@ class ArgenpropScraper(BaseScraper):
             cochera = self._detect_bool(search_text, ["cochera", "garage", "garaje"])
             amenities_list = self._extract_amenities(search_text)
 
+            # Imagen principal
+            imagen_url = self._extract_image_url_from_item(item)
+
             publisher = item.get("publisher") or item.get("agency") or {}
             inmobiliaria = (
                 publisher.get("name") or publisher.get("realEstateName")
@@ -339,6 +342,7 @@ class ArgenpropScraper(BaseScraper):
                 amenities=", ".join(amenities_list) if amenities_list else None,
                 descripcion=descripcion[:2000] if descripcion else None,
                 fecha_publicacion=fecha_pub,
+                imagen_url=imagen_url,
             )
 
         except Exception as e:
@@ -346,7 +350,24 @@ class ArgenpropScraper(BaseScraper):
                          item.get("id", "?"), e, exc_info=True)
             return None
 
-    def _extract_price(self, item: dict) -> Optional[float]:
+    @staticmethod
+    def _extract_image_url_from_item(item: dict) -> Optional[str]:
+        """Extrae la URL de la imagen principal del item JSON de Argenprop."""
+        for key in ("photos", "pictures", "images"):
+            val = item.get(key)
+            if isinstance(val, list) and val:
+                first = val[0]
+                if isinstance(first, dict):
+                    return first.get("url") or first.get("src") or first.get("localUrl")
+                if isinstance(first, str):
+                    return first
+        multimedia = item.get("multimedia") or {}
+        if isinstance(multimedia, dict):
+            pics = multimedia.get("pictures") or []
+            if pics:
+                first = pics[0]
+                return first.get("url") or first.get("src") if isinstance(first, dict) else first
+        return None
         """Extrae el precio USD de las distintas estructuras posibles."""
         # Estructura con operaciones
         for key in ("operationTypes", "operations", "priceOperationTypes"):
@@ -475,6 +496,10 @@ class ArgenpropScraper(BaseScraper):
             cochera = self._detect_bool(full_text, ["cochera", "garage"])
             amenities_list = self._extract_amenities(full_text)
 
+            # Imagen desde HTML
+            img_el = card.select_one("img[src]:not([src=''])")
+            imagen_url = img_el.get("src") if img_el else None
+
             return Publicacion(
                 id_publicacion=id_pub,
                 portal=PORTAL,
@@ -495,6 +520,7 @@ class ArgenpropScraper(BaseScraper):
                 cochera=cochera,
                 amenities=", ".join(amenities_list) if amenities_list else None,
                 descripcion=full_text[:2000],
+                imagen_url=imagen_url,
             )
 
         except Exception as e:

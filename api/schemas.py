@@ -41,6 +41,7 @@ class PropertyResult(BaseModel):
     cochera: bool = False
     url: str
     estado: str = "NUEVA"
+    imagen_url: Optional[str] = None
 
 
 class SearchResponse(BaseModel):
@@ -52,5 +53,11 @@ class SearchResponse(BaseModel):
     filters_applied: dict
     intent: Optional[str] = None
     message: Optional[str] = None
-    intent: Optional[str] = None
-    message: Optional[str] = None
+
+
+class ChatRequest(BaseModel):
+    query: str
+
+
+class ChatResponse(BaseModel):
+    message: str

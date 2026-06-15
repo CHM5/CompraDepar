@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS publicaciones (
     amenities           TEXT,
     descripcion         TEXT,
     fecha_publicacion   TEXT,
+    imagen_url          TEXT,
 
     -- Scoring y análisis
     score               REAL,

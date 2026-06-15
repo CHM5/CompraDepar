@@ -48,6 +48,7 @@ def _run_migrations(conn: sqlite3.Connection) -> None:
     """Aplica migraciones de columnas nuevas de forma idempotente."""
     pending = [
         "ALTER TABLE publicaciones ADD COLUMN operacion TEXT DEFAULT 'venta'",
+        "ALTER TABLE publicaciones ADD COLUMN imagen_url TEXT",
     ]
     for stmt in pending:
         try:
@@ -377,6 +378,7 @@ def _save_publicacion(pub: Publicacion) -> None:
         "usd_m2_efectivo": pub.usd_m2_efectivo,
         "estado": pub.estado,
         "operacion": getattr(pub, 'operacion', 'venta'),
+        "imagen_url": getattr(pub, 'imagen_url', None),
         "precio_anterior": pub.precio_anterior,
         "variacion_porcentual": pub.variacion_porcentual,
         "fecha_deteccion": pub.fecha_deteccion,
@@ -394,7 +396,7 @@ def _save_publicacion(pub: Publicacion) -> None:
                 balcon, cochera, amenities, descripcion, fecha_publicacion,
                 score, clasificacion, pros, contras, usd_m2_efectivo,
                 estado, precio_anterior, variacion_porcentual,
-                fecha_deteccion, ultima_actualizacion, comentarios, operacion
+                fecha_deteccion, ultima_actualizacion, comentarios, operacion, imagen_url
             ) VALUES (
                 :id_publicacion, :portal, :url, :inmobiliaria, :direccion, :barrio,
                 :ambientes, :m2_cubiertos, :m2_descubiertos, :m2_totales,
@@ -402,7 +404,7 @@ def _save_publicacion(pub: Publicacion) -> None:
                 :balcon, :cochera, :amenities, :descripcion, :fecha_publicacion,
                 :score, :clasificacion, :pros, :contras, :usd_m2_efectivo,
                 :estado, :precio_anterior, :variacion_porcentual,
-                :fecha_deteccion, :ultima_actualizacion, :comentarios, :operacion
+                :fecha_deteccion, :ultima_actualizacion, :comentarios, :operacion, :imagen_url
             )
             ON CONFLICT(id_publicacion, portal) DO UPDATE SET
                 url                  = excluded.url,
@@ -433,7 +435,8 @@ def _save_publicacion(pub: Publicacion) -> None:
                 precio_anterior      = excluded.precio_anterior,
                 variacion_porcentual = excluded.variacion_porcentual,
                 ultima_actualizacion = excluded.ultima_actualizacion,
-                operacion            = excluded.operacion
+                operacion            = excluded.operacion,
+                imagen_url           = excluded.imagen_url
             """,
             params,
         )

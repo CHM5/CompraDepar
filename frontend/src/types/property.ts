@@ -14,6 +14,7 @@ export interface PropertyResult {
   cochera: boolean;
   url: string;
   estado: string;
+  imagen_url: string | null;
 }
 
 export interface FiltersApplied {
@@ -43,4 +44,13 @@ export interface SearchApiResponse {
   filters_applied: FiltersApplied;
   intent?: string;
   message?: string;
+}
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ChatApiResponse {
+  message: string;
 }
