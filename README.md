@@ -3,6 +3,8 @@
 Sistema automatizado de búsqueda, seguimiento y scoring de departamentos en venta en Buenos Aires (CABA).  
 Consulta periódicamente **Zonaprop** y **Argenprop**, detecta novedades, calcula scores, exporta a **Google Sheets** y envía alertas por **Telegram**.
 
+🌐 **Frontend demo:** [chm5.github.io/CompraDepar](https://chm5.github.io/CompraDepar/)
+
 ---
 
 ## ✨ Features
@@ -179,7 +181,29 @@ También se puede ejecutar manualmente desde **Actions → Scraper Departamentos
 
 ---
 
-## 🏷 Sistema de scoring
+## � GitHub Pages — Frontend
+
+El frontend (Next.js) se despliega automáticamente como sitio estático en cada push a `main`.
+
+**URL:** [https://chm5.github.io/CompraDepar/](https://chm5.github.io/CompraDepar/)
+
+### Activar GitHub Pages por primera vez
+
+1. Ir a **Settings → Pages** en el repositorio
+2. En *Source*, seleccionar **GitHub Actions**
+3. Hacer un push a `main` — el workflow `pages.yml` construye y publica automáticamente
+
+### Conectar al backend (opcional)
+
+Sin configuración extra, el frontend intenta conectarse a `http://localhost:8000` (solo funciona localmente).  
+Para que la demo pública funcione, desplegá el backend (ej. Railway, Render) y configurá el secret:
+
+**Settings → Secrets and variables → Actions → New repository secret**
+
+| Secret | Valor |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | URL pública del backend, ej. `https://tu-app.railway.app` |
+
 
 | Criterio | Puntos |
 |---|---|
