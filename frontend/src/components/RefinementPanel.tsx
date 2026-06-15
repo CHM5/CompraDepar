@@ -35,7 +35,24 @@ const CABA_BARRIOS = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function buildInitialForm(f: FiltersApplied): FormState {
+function buildInitialForm(f: FiltersApplied | null): FormState {
+  if (!f) {
+    return {
+      barrios: [],
+      operacion: "venta",
+      ambientes_min: null,
+      ambientes_max: null,
+      precio_min: "",
+      precio_max: "",
+      m2_min: "",
+      m2_max: "",
+      balcon: false,
+      terraza: false,
+      cochera: false,
+      antiguedad_max: "",
+      expensas_max: "",
+    };
+  }
   return {
     barrios: Array.isArray(f.barrios) ? f.barrios : [],
     operacion: (f.operacion as "venta" | "alquiler") ?? "venta",
@@ -58,19 +75,28 @@ function toInt(s: string): number | null {
   return isNaN(n) || n <= 0 ? null : n;
 }
 
-function countActive(form: FormState, initial: FiltersApplied): number {
+const EMPTY_FILTERS_APPLIED: FiltersApplied = {
+  operacion: "venta", tipo: null, barrios: [],
+  m2_min: null, m2_max: null, precio_min: null, precio_max: null,
+  ambientes_min: null, ambientes_max: null,
+  balcon: null, terraza: null, cochera: null,
+  antiguedad_max: null, expensas_max: null,
+};
+
+function countActive(form: FormState, initial: FiltersApplied | null): number {
+  const ini = initial ?? EMPTY_FILTERS_APPLIED;
   let n = 0;
-  if ((form.barrios ?? []).join("|") !== (initial.barrios ?? []).join("|")) n++;
-  if (form.operacion !== (initial.operacion ?? "venta")) n++;
-  if (form.ambientes_min !== (initial.ambientes_min ?? null)) n++;
-  if (form.ambientes_max !== (initial.ambientes_max ?? null)) n++;
-  if (form.precio_min && toInt(form.precio_min) !== initial.precio_min) n++;
-  if (form.precio_max && toInt(form.precio_max) !== initial.precio_max) n++;
-  if (form.m2_min && toInt(form.m2_min) !== initial.m2_min) n++;
-  if (form.m2_max && toInt(form.m2_max) !== initial.m2_max) n++;
-  if (form.balcon && !initial.balcon) n++;
-  if (form.terraza && !initial.terraza) n++;
-  if (form.cochera && !initial.cochera) n++;
+  if ((form.barrios ?? []).join("|") !== (ini.barrios ?? []).join("|")) n++;
+  if (form.operacion !== (ini.operacion ?? "venta")) n++;
+  if (form.ambientes_min !== (ini.ambientes_min ?? null)) n++;
+  if (form.ambientes_max !== (ini.ambientes_max ?? null)) n++;
+  if (form.precio_min && toInt(form.precio_min) !== ini.precio_min) n++;
+  if (form.precio_max && toInt(form.precio_max) !== ini.precio_max) n++;
+  if (form.m2_min && toInt(form.m2_min) !== ini.m2_min) n++;
+  if (form.m2_max && toInt(form.m2_max) !== ini.m2_max) n++;
+  if (form.balcon && !ini.balcon) n++;
+  if (form.terraza && !ini.terraza) n++;
+  if (form.cochera && !ini.cochera) n++;
   if (form.antiguedad_max) n++;
   if (form.expensas_max) n++;
   return n;
@@ -130,7 +156,7 @@ function NumberInput({
 // ── Main component ────────────────────────────────────────────────────────────
 
 interface Props {
-  initialFilters: FiltersApplied;
+  initialFilters: FiltersApplied | null;
   onApply: (extra: ExtraFilters) => void;
   isLoading: boolean;
 }
@@ -207,7 +233,7 @@ export function RefinementPanel({ initialFilters, onApply, isLoading }: Props) {
       <div className="flex w-full items-center justify-between gap-2 px-5 py-3.5">
         <div className="flex items-center gap-2">
           <SlidersHorizontal className="h-4 w-4 text-neutral-500" />
-          <span className="text-sm font-semibold text-neutral-700">Refinar búsqueda (fijo)</span>
+          <span className="text-sm font-semibold text-neutral-700">Refinar búsqueda</span>
           {activeCount > 0 && (
             <span className="rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
               {activeCount}

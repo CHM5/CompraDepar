@@ -1,6 +1,11 @@
-import { AlertCircle, Bot, Loader2, MapPin, SearchX, Sparkles } from "lucide-react";
+"use client";
+
+import { AlertCircle, Bot, Lock, Loader2, MapPin, SearchX, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
 import { PropertyCard } from "./PropertyCard";
-import type { SearchApiResponse, FiltersApplied } from "@/types/property";
+import type { SearchApiResponse, FiltersApplied, PropertyResult } from "@/types/property";
+import { simulateLogin, trackEvent, type ScoringPrefs, DEFAULT_PREFS } from "@/lib/analytics";
+import { sortByPrefs } from "@/components/ScoringPanel";
 
 /** Formatea un precio según la operación (USD para venta, $ para alquiler) */
 function fmtPrice(value: number, operacion: string): string {
@@ -197,6 +202,150 @@ interface ResultsListProps {
   hasSearched: boolean;
   onSearch: (q: string) => void;
   loadingQuery?: string;
+  scoringPrefs?: ScoringPrefs;
+}
+
+// ── Gated wall shown to anonymous users ───────────────────────────────────────
+
+function GatedWall({
+  data,
+  onLogin,
+}: {
+  data: SearchApiResponse;
+  onLogin: () => void;
+}) {
+  const { total, results } = data;
+
+  // Compute quick stats from available results
+  const barrioCounts: Record<string, number> = {};
+  let priceSum = 0, priceCount = 0, m2Sum = 0, m2Count = 0;
+  for (const r of results) {
+    if (r.barrio) barrioCounts[r.barrio] = (barrioCounts[r.barrio] ?? 0) + 1;
+    if (r.precio_usd) { priceSum += r.precio_usd; priceCount++; }
+    const m2 = r.m2_totales ?? r.m2_cubiertos;
+    if (m2) { m2Sum += m2; m2Count++; }
+  }
+  const topBarrios = Object.entries(barrioCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+  const avgPrice = priceCount > 0 ? Math.round(priceSum / priceCount) : null;
+  const avgM2 = m2Count > 0 ? Math.round(m2Sum / m2Count) : null;
+  const preview = results.slice(0, 3);
+
+  return (
+    <div className="space-y-6">
+      {/* Stats summary — the "value demonstration" */}
+      <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50 p-5">
+        <p className="mb-3 text-base font-bold text-neutral-900">
+          Encontramos{" "}
+          <span className="text-blue-600">{total.toLocaleString("es-AR")} propiedades</span>{" "}
+          para tu búsqueda
+        </p>
+        <div className="space-y-1.5">
+          {topBarrios.map(([barrio, count]) => (
+            <div key={barrio} className="flex items-center gap-2 text-sm text-neutral-700">
+              <span className="text-green-500">✓</span>
+              <span>
+                <strong>{count}</strong> en {barrio}
+              </span>
+            </div>
+          ))}
+          {avgPrice && (
+            <div className="flex items-center gap-2 text-sm text-neutral-700">
+              <span className="text-green-500">✓</span>
+              <span>
+                Precio promedio:{" "}
+                <strong>USD {avgPrice.toLocaleString("es-AR")}</strong>
+              </span>
+            </div>
+          )}
+          {avgM2 && (
+            <div className="flex items-center gap-2 text-sm text-neutral-700">
+              <span className="text-green-500">✓</span>
+              <span>
+                Superficie promedio: <strong>{avgM2} m²</strong>
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 3 preview cards (no links) */}
+      <div>
+        <p className="mb-3 text-sm font-semibold text-neutral-600">
+          Vista previa de los mejores resultados:
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {preview.map((prop) => (
+            <div key={`${prop.portal}-${prop.ranking}`} className="relative">
+              <PropertyCard property={{ ...prop, url: "#" }} />
+              {/* Lock overlay on the CTA area */}
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center rounded-b-2xl bg-gradient-to-t from-white/90 to-transparent pb-4 pt-8">
+                <Lock className="mb-1 h-4 w-4 text-neutral-400" />
+                <span className="text-[11px] text-neutral-400">
+                  Iniciá sesión para ver el link
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 2 blurred "ghost" cards hinting at more results */}
+      {results.length > 3 && (
+        <div className="relative">
+          <div className="pointer-events-none grid select-none gap-4 blur-[3px] sm:grid-cols-2">
+            {results.slice(3, 5).map((prop) => (
+              <PropertyCard
+                key={`ghost-${prop.portal}-${prop.ranking}`}
+                property={{ ...prop, url: "#" }}
+              />
+            ))}
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-white/40" />
+        </div>
+      )}
+
+      {/* Login CTA */}
+      <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-center shadow-sm">
+        <p className="mb-1 text-base font-bold text-neutral-900">
+          Registrate gratis para ver los{" "}
+          {total.toLocaleString("es-AR")} resultados
+        </p>
+        <p className="mb-5 text-sm text-neutral-500">
+          Guardá favoritos, recibí alertas de precio y accedé al historial completo.
+        </p>
+        <button
+          onClick={onLogin}
+          className="mx-auto flex items-center gap-2.5 rounded-xl bg-blue-600 px-7 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        >
+          {/* Google "G" icon */}
+          <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              fill="white"
+              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+            />
+            <path
+              fill="white"
+              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+            />
+            <path
+              fill="white"
+              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+            />
+            <path
+              fill="white"
+              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+            />
+          </svg>
+          Continuar con Google
+        </button>
+        <p className="mt-3 text-xs text-neutral-400">
+          Sin tarjeta de crédito · Registro en menos de 10 segundos
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export function ResultsList({
@@ -206,7 +355,19 @@ export function ResultsList({
   hasSearched,
   onSearch,
   loadingQuery,
+  scoringPrefs = DEFAULT_PREFS,
 }: ResultsListProps) {
+  const [loggedIn, setLoggedIn] = useState(false);
+
+  useEffect(() => {
+    setLoggedIn(localStorage.getItem("df_logged_in") === "true");
+  }, []);
+
+  function handleLogin() {
+    trackEvent("login_click");
+    simulateLogin();
+    setLoggedIn(true);
+  }
   if (!hasSearched) return null;
 
   if (isLoading) {
@@ -295,6 +456,19 @@ export function ResultsList({
 
   const { results, total, truncated, plan, filters_applied } = data;
 
+  // Gated: anonymous users see 3 preview cards + login wall
+  if (!loggedIn && results.length > 0) {
+    return (
+      <div className="space-y-4">
+        <FiltersPanel filters={filters_applied} />
+        <GatedWall data={data} onLogin={handleLogin} />
+      </div>
+    );
+  }
+
+  // Logged in: apply user's scoring preferences to sort
+  const sorted: PropertyResult[] = sortByPrefs(results, scoringPrefs);
+
     return (
     <div className="space-y-4">
       {/* Filtros activos */}
@@ -329,7 +503,7 @@ export function ResultsList({
 
       {/* Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {results.map((prop) => (
+        {sorted.map((prop) => (
           <PropertyCard key={`${prop.portal}-${prop.ranking}`} property={prop} />
         ))}
       </div>

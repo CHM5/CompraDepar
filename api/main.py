@@ -29,6 +29,7 @@ ROOT = Path(__file__).parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+import config as app_config
 from api.schemas import PropertyResult, SearchRequest, SearchResponse, ChatRequest, ChatResponse, ExtraFilters
 from api.services.query_parser import parse_query
 from api.services import search_service
@@ -97,6 +98,31 @@ app.add_middleware(
 def health() -> dict:
     """Verificación de vida del servicio."""
     return {"status": "ok"}
+
+
+@app.get("/api/v1/scoring", tags=["meta"])
+def get_scoring_config() -> dict:
+    """Retorna la configuración actual del sistema de puntuación."""
+    return {
+        "barrios": app_config.SCORE_BARRIOS,
+        "disposicion": app_config.SCORE_DISPOSICION,
+        "balcon": app_config.SCORE_BALCON,
+        "cochera": app_config.SCORE_COCHERA,
+        "piso_5_mas": app_config.SCORE_PISO_5_MAS,
+        "antiguedad_10_menos": app_config.SCORE_ANTIGUEDAD_10_MENOS,
+        "m2_tiers": app_config.SCORE_M2_TIERS,
+        "amenities": app_config.SCORE_AMENITIES,
+        "expensas_tiers": app_config.SCORE_EXPENSAS_TIERS,
+        "usd_m2_excelente_umbral": app_config.USD_M2_EXCELENTE,
+        "usd_m2_bueno_umbral": app_config.USD_M2_BUENO,
+        "usd_m2_excelente_pts": app_config.SCORE_USD_M2_EXCELENTE,
+        "usd_m2_bueno_pts": app_config.SCORE_USD_M2_BUENO,
+        "clasificaciones": {
+            "excelente": app_config.SCORE_EXCELENTE,
+            "alerta": app_config.SCORE_MINIMO_ALERTA,
+            "exportar": app_config.SCORE_MINIMO_EXPORTAR,
+        },
+    }
 
 
 @app.post(

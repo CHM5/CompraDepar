@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import Image from "next/image";
+import { BarChart2, Info } from "lucide-react";
 import { SearchBox } from "@/components/SearchBox";
 import { ResultsList } from "@/components/ResultsList";
 import { RefinementPanel } from "@/components/RefinementPanel";
+import { ScoringPanel } from "@/components/ScoringPanel";
 import { searchProperties, HAS_BACKEND } from "@/lib/api";
-import type { SearchApiResponse, ExtraFilters } from "@/types/property";
-import { Info } from "lucide-react";
+import { getSessionId, trackEvent, loadScoringPrefs, type ScoringPrefs } from "@/lib/analytics";
+import type { SearchApiResponse, ExtraFilters, FiltersApplied } from "@/types/property";
 
 const EXAMPLES = [
   "Palermo, entre USD 90k y 120k, desde 40m²",
@@ -19,11 +21,53 @@ const EXAMPLES = [
   "¿Conviene invertir en Caballito?",
 ];
 
+const EMPTY_FILTERS: FiltersApplied = {
+  operacion: "venta",
+  tipo: null,
+  barrios: [],
+  m2_min: null,
+  m2_max: null,
+  precio_min: null,
+  precio_max: null,
+  ambientes_min: null,
+  ambientes_max: null,
+  balcon: null,
+  terraza: null,
+  cochera: null,
+  antiguedad_max: null,
+  expensas_max: null,
+};
+
 type SearchParams = { query: string; extraFilters?: ExtraFilters | null };
+
+function buildQueryFromFilters(extra: ExtraFilters): string {
+  const parts: string[] = [];
+  if (extra.barrios?.length) {
+    parts.push("departamentos en " + extra.barrios.slice(0, 3).join(" o "));
+  } else {
+    parts.push("departamentos en CABA");
+  }
+  if (extra.operacion === "alquiler") parts.push("en alquiler");
+  if (extra.ambientes_min === 1 && extra.ambientes_max === 1) parts.push("monoambiente");
+  else if (extra.ambientes_min) parts.push(`${extra.ambientes_min} ambientes`);
+  if (extra.precio_max) parts.push(`hasta USD ${extra.precio_max.toLocaleString()}`);
+  if (extra.m2_min) parts.push(`desde ${extra.m2_min} m²`);
+  if (extra.balcon) parts.push("con balcón");
+  if (extra.terraza) parts.push("con terraza");
+  if (extra.cochera) parts.push("con cochera");
+  return parts.join(" ");
+}
 
 export default function HomePage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [lastQuery, setLastQuery] = useState("");
+  const [scoringOpen, setScoringOpen] = useState(false);
+  const [scoringPrefs, setScoringPrefs] = useState<ScoringPrefs>(() => loadScoringPrefs());
+
+  // Init anonymous session on mount
+  useEffect(() => {
+    getSessionId(); // creates if not exists
+  }, []);
 
   const { mutate, data, isPending, error, reset, variables } = useMutation<
     SearchApiResponse,
@@ -39,18 +83,22 @@ export default function HomePage() {
     setLastQuery(query);
     reset();
     mutate({ query });
+    trackEvent("search", { query });
   }
 
   function handleApplyFilters(extra: ExtraFilters) {
+    const q = lastQuery.trim() || buildQueryFromFilters(extra);
+    setHasSearched(true);
+    setLastQuery(q);
     reset();
-    mutate({ query: lastQuery, extraFilters: extra });
+    mutate({ query: q, extraFilters: extra });
+    trackEvent("filter_apply", { query: q });
   }
 
-  const showRefinement =
-    hasSearched &&
-    !isPending &&
-    data?.intent === "search" &&
-    !!data?.filters_applied;
+  const currentFilters: FiltersApplied =
+    data?.intent === "search" && data?.filters_applied
+      ? (data.filters_applied as FiltersApplied)
+      : EMPTY_FILTERS;
 
   return (
     <main className="mx-auto min-h-screen max-w-5xl px-4 pb-16 pt-12 sm:pt-16">
@@ -72,6 +120,14 @@ export default function HomePage() {
           <h1 className="text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">
             Depar Finder
           </h1>
+          {/* Scoring info button */}
+          <button
+            onClick={() => setScoringOpen(true)}
+            title="Cómo se puntúan las propiedades"
+            className="ml-1 rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-blue-600"
+          >
+            <BarChart2 className="h-5 w-5" />
+          </button>
         </div>
         {!hasSearched && (
           <p className="mx-auto mt-2 max-w-lg text-base text-neutral-500">
@@ -117,17 +173,15 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Refinement panel — slides in after first search results */}
-      {showRefinement && (
-        <div className="sticky top-3 z-20 mx-auto mt-5 max-w-3xl">
-          <RefinementPanel
-            key={lastQuery}
-            initialFilters={data.filters_applied}
-            onApply={handleApplyFilters}
-            isLoading={isPending}
-          />
-        </div>
-      )}
+      {/* Refinement panel — always visible */}
+      <div className="mx-auto mt-5 max-w-3xl">
+        <RefinementPanel
+          key={hasSearched ? lastQuery : "initial"}
+          initialFilters={currentFilters}
+          onApply={handleApplyFilters}
+          isLoading={isPending}
+        />
+      </div>
 
       {/* Results */}
       <div className="mx-auto mt-6 max-w-5xl">
@@ -138,8 +192,17 @@ export default function HomePage() {
           hasSearched={hasSearched}
           onSearch={handleSearch}
           loadingQuery={variables?.query}
+          scoringPrefs={scoringPrefs}
         />
       </div>
+
+      {/* Scoring modal */}
+      <ScoringPanel
+        open={scoringOpen}
+        onClose={() => setScoringOpen(false)}
+        onPrefsChange={setScoringPrefs}
+      />
     </main>
   );
 }
+
