@@ -39,7 +39,11 @@ from shared.intent import Intent, INTENT_MESSAGES, detect_intent
 
 logger = logging.getLogger(__name__)
 
-FREE_LIMIT = 20
+FREE_LIMIT = 5  # Free plan: max 5 results per search
+
+# Admin emails from env var (comma-separated)
+import os as _os
+ADMIN_EMAILS = [e.strip() for e in _os.getenv("ADMIN_EMAILS", "").split(",") if e.strip()]
 
 
 def _normalize_image_url(url: Optional[str]) -> Optional[str]:

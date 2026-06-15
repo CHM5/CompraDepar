@@ -1,15 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import Image from "next/image";
-import { BarChart2, Info } from "lucide-react";
+import { BarChart2, Info, Loader2 } from "lucide-react";
 import { SearchBox } from "@/components/SearchBox";
 import { ResultsList } from "@/components/ResultsList";
 import { RefinementPanel } from "@/components/RefinementPanel";
 import { ScoringPanel } from "@/components/ScoringPanel";
+import { LandingPage } from "@/components/LandingPage";
+import { UserMenu } from "@/components/UserMenu";
+import { FavoritesModal } from "@/components/FavoritesModal";
+import { HistoryModal } from "@/components/HistoryModal";
 import { searchProperties, HAS_BACKEND } from "@/lib/api";
 import { getSessionId, trackEvent, loadScoringPrefs, type ScoringPrefs } from "@/lib/analytics";
+import { useAuth } from "@/context/AuthContext";
+import { useSearchHistory } from "@/hooks/useSearchHistory";
 import type { SearchApiResponse, ExtraFilters, FiltersApplied } from "@/types/property";
 
 const EXAMPLES = [
@@ -59,14 +65,20 @@ function buildQueryFromFilters(extra: ExtraFilters): string {
 }
 
 export default function HomePage() {
+  const { user, loading: authLoading, plan } = useAuth();
+  const { addEntry } = useSearchHistory(user?.email ?? null);
+
   const [hasSearched, setHasSearched] = useState(false);
   const [lastQuery, setLastQuery] = useState("");
   const [scoringOpen, setScoringOpen] = useState(false);
+  const [showFavorites, setShowFavorites] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [scoringPrefs, setScoringPrefs] = useState<ScoringPrefs>(() => loadScoringPrefs());
+  const prevDataRef = useRef<SearchApiResponse | null>(null);
 
   // Init anonymous session on mount
   useEffect(() => {
-    getSessionId(); // creates if not exists
+    getSessionId();
   }, []);
 
   const { mutate, data, isPending, error, reset, variables } = useMutation<
@@ -75,8 +87,18 @@ export default function HomePage() {
     SearchParams
   >({
     mutationFn: ({ query, extraFilters }) =>
-      searchProperties(query, "free", extraFilters),
+      searchProperties(query, plan, extraFilters),
   });
+
+  // Track search in history after successful response
+  useEffect(() => {
+    if (!data || data === prevDataRef.current) return;
+    prevDataRef.current = data;
+    if (data.intent === "search" && lastQuery) {
+      addEntry({ query: lastQuery, results: data.total });
+      if (data.total === 0) trackEvent("no_results", { query: lastQuery });
+    }
+  }, [data, lastQuery, addEntry]);
 
   function handleSearch(query: string) {
     setHasSearched(true);
@@ -100,57 +122,75 @@ export default function HomePage() {
       ? (data.filters_applied as FiltersApplied)
       : EMPTY_FILTERS;
 
+  // ── Auth loading ──────────────────────────────────────────────────────────
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-neutral-50">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  // ── Not logged in → public landing page ──────────────────────────────────
+  if (!user) return <LandingPage />;
+
+  // ── Main app ──────────────────────────────────────────────────────────────
   return (
-    <main className="mx-auto min-h-screen max-w-5xl px-4 pb-16 pt-12 sm:pt-16">
-      {/* Hero */}
+    <main className="mx-auto min-h-screen max-w-5xl px-4 pb-16 pt-8 sm:pt-10">
+      {/* Top bar */}
       <div
-        className={`text-center transition-all duration-300 ${
-          hasSearched ? "mb-6" : "mb-10"
-        }`}
+        className={`transition-all duration-300 ${hasSearched ? "mb-6" : "mb-10"}`}
       >
-        <div className="mb-2 flex items-center justify-center gap-2">
-          <Image
-            src="/depar-finder-logo.svg"
-            alt="Depar Finder"
-            width={36}
-            height={36}
-            className="h-9 w-9 rounded-lg"
-            priority
+        <div className="flex items-center justify-between gap-2">
+          {/* Logo + title */}
+          <div className="flex items-center gap-2">
+            <Image
+              src="/depar-finder-logo.svg"
+              alt="Depar Finder"
+              width={36}
+              height={36}
+              className="h-9 w-9 rounded-lg"
+              priority
+            />
+            <h1 className="text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">
+              Depar Finder
+            </h1>
+            <button
+              onClick={() => setScoringOpen(true)}
+              title="Cómo se puntúan las propiedades"
+              className="ml-1 rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-blue-600"
+            >
+              <BarChart2 className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* User menu */}
+          <UserMenu
+            onShowFavorites={() => setShowFavorites(true)}
+            onShowHistory={() => setShowHistory(true)}
           />
-          <h1 className="text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">
-            Depar Finder
-          </h1>
-          {/* Scoring info button */}
-          <button
-            onClick={() => setScoringOpen(true)}
-            title="Cómo se puntúan las propiedades"
-            className="ml-1 rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-blue-600"
-          >
-            <BarChart2 className="h-5 w-5" />
-          </button>
         </div>
+
         {!hasSearched && (
-          <p className="mx-auto mt-2 max-w-lg text-base text-neutral-500">
+          <p className="mt-2 text-center text-base text-neutral-500">
             Buscá propiedades o preguntame sobre el mercado inmobiliario de CABA.
           </p>
         )}
       </div>
 
-      {/* Banner demo */}
+      {/* Demo banner */}
       {!HAS_BACKEND && (
         <div className="mx-auto mb-6 max-w-2xl flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
           <p className="text-sm text-amber-800">
-            <span className="font-semibold">Demo estática</span> — las búsquedas requieren el backend.
-            Para probarlo en vivo ejecutá{" "}
+            <span className="font-semibold">Demo estática</span> — ejecutá{" "}
             <code className="rounded bg-amber-100 px-1 font-mono text-xs">./start.sh</code>{" "}
-            en tu máquina y abrí{" "}
-            <code className="rounded bg-amber-100 px-1 font-mono text-xs">localhost:3000</code>.
+            para probar el backend en vivo.
           </p>
         </div>
       )}
 
-      {/* Input */}
+      {/* Search box */}
       <div
         className={`mx-auto transition-all duration-300 ${
           hasSearched ? "max-w-3xl" : "max-w-2xl"
@@ -196,13 +236,24 @@ export default function HomePage() {
         />
       </div>
 
-      {/* Scoring modal */}
+      {/* Modals */}
       <ScoringPanel
         open={scoringOpen}
         onClose={() => setScoringOpen(false)}
         onPrefsChange={setScoringPrefs}
       />
-    </main>
-  );
+      {showFavorites && (
+        <FavoritesModal
+          email={user.email}
+          onClose={() => setShowFavorites(false)}
+        />
+      )}
+      {showHistory && (
+        <HistoryModal
+          email={user.email}
+          onSearch={(q) => { setShowHistory(false); handleSearch(q); }}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
+    </main>  );
 }
-

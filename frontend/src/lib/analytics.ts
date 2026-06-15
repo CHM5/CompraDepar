@@ -8,9 +8,16 @@
 export type EventType =
   | "search"
   | "filter_apply"
+  | "login"
   | "login_click"
   | "login_success"
+  | "logout"
   | "result_view"
+  | "property_click"
+  | "upgrade_click"
+  | "no_results"
+  | "favorite_add"
+  | "favorite_remove"
   | "scoring_open"
   | "scoring_prefs_save";
 

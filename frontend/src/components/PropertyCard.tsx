@@ -1,6 +1,7 @@
-import { ExternalLink, MapPin, Building2, Maximize2, Banknote, ImageOff } from "lucide-react";
+import { ExternalLink, Heart, MapPin, Building2, Maximize2, Banknote, ImageOff } from "lucide-react";
 import type { PropertyResult } from "@/types/property";
 import { cn } from "@/lib/utils";
+import { trackEvent } from "@/lib/analytics";
 
 const PORTAL_COLORS: Record<string, string> = {
   Zonaprop: "bg-blue-600 text-white",
@@ -48,9 +49,11 @@ function ScoreBadge({ score }: { score: number | null }) {
 
 interface PropertyCardProps {
   property: PropertyResult;
+  isFav?: boolean;
+  onToggleFav?: (e: React.MouseEvent, property: PropertyResult) => void;
 }
 
-export function PropertyCard({ property }: PropertyCardProps) {
+export function PropertyCard({ property, isFav = false, onToggleFav }: PropertyCardProps) {
   const { ranking, portal, barrio, direccion, precio_usd, expensas,
     m2_totales, m2_cubiertos, ambientes, score, balcon, cochera, url, imagen_url } = property;
 
@@ -59,8 +62,25 @@ export function PropertyCard({ property }: PropertyCardProps) {
   const portalBg = PORTAL_BG[portal] ?? "from-neutral-100 to-neutral-50";
   const exp = formatExpensas(expensas);
 
+  function handleCardClick() {
+    if (!url || url === "#") return;
+    trackEvent("property_click");
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  function handleFavClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    onToggleFav?.(e, property);
+  }
+
   return (
-    <article className="flex flex-col rounded-2xl border border-neutral-100 bg-white overflow-hidden shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
+    <article
+      onClick={handleCardClick}
+      className={cn(
+        "flex flex-col rounded-2xl border border-neutral-100 bg-white overflow-hidden shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5",
+        url && url !== "#" ? "cursor-pointer" : "",
+      )}
+    >
       {/* Imagen */}
       <div className={cn("relative h-44 overflow-hidden bg-gradient-to-br", imagen_url ? "bg-neutral-100" : portalBg)}>
         {imagen_url ? (
@@ -86,7 +106,22 @@ export function PropertyCard({ property }: PropertyCardProps) {
         <span className={cn("absolute left-3 top-3 rounded-full px-2.5 py-0.5 text-xs font-semibold shadow-sm", portalColor)}>
           {portal}
         </span>
-        <div className="absolute right-3 top-3"><ScoreBadge score={score} /></div>
+        <div className="absolute right-3 top-3 flex items-center gap-1.5">
+          <ScoreBadge score={score} />
+          {/* Favorite button */}
+          <button
+            onClick={handleFavClick}
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm transition-colors hover:bg-black/60"
+            title={isFav ? "Quitar de favoritos" : "Guardar en favoritos"}
+          >
+            <Heart
+              className={cn(
+                "h-3.5 w-3.5 transition-colors",
+                isFav ? "fill-rose-400 text-rose-400" : "text-white",
+              )}
+            />
+          </button>
+        </div>
         <span className="absolute bottom-3 left-3 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-xs font-bold text-neutral-900 shadow">
           {ranking}
         </span>
@@ -133,14 +168,13 @@ export function PropertyCard({ property }: PropertyCardProps) {
           {cochera && <span className="rounded-full border border-amber-100 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">Cochera</span>}
         </div>
 
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-auto flex items-center justify-center gap-1.5 rounded-xl border border-neutral-200 px-4 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-        >
-          Ver publicación <ExternalLink className="h-3.5 w-3.5" />
-        </a>
+        {/* Click hint */}
+        {url && url !== "#" && (
+          <div className="mt-auto flex items-center gap-1 text-xs text-neutral-400">
+            <ExternalLink className="h-3 w-3" />
+            <span>Hacé clic para abrir en el portal</span>
+          </div>
+        )}
       </div>
     </article>
   );
