@@ -109,13 +109,18 @@ else
     echo ""
     echo "══════════════════════════════════════════════"
     echo "  ✗ depar-backend falló al arrancar."
-    echo "  Service file instalado:"
-    echo "──────────────────────────────────────────────"
-    cat /etc/systemd/system/depar-backend.service
-    echo "──────────────────────────────────────────────"
-    echo "  Últimas líneas del journal:"
-    echo "──────────────────────────────────────────────"
-    sudo journalctl -u depar-backend -n 40 --no-pager
+    echo ""
+    echo "  --- Service file instalado ---"
+    sudo cat /etc/systemd/system/depar-backend.service || true
+    echo ""
+    echo "  --- Verificaciones de paths ---"
+    echo "  APP_DIR:   $APP_DIR"
+    echo "  .env:      $(ls -la "$APP_DIR/.env" 2>&1)"
+    echo "  uvicorn:   $(ls -la "$APP_DIR/.venv/bin/uvicorn" 2>&1)"
+    echo "  api/:      $(ls "$APP_DIR/api/" 2>&1)"
+    echo ""
+    echo "  --- Journal (últimas 50 líneas) ---"
+    sudo journalctl -u depar-backend -n 50 --no-pager || true
     echo "══════════════════════════════════════════════"
     exit 1
 fi
