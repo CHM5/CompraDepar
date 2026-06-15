@@ -4,8 +4,9 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { SearchBox } from "@/components/SearchBox";
 import { ResultsList } from "@/components/ResultsList";
-import { searchProperties } from "@/lib/api";
+import { searchProperties, HAS_BACKEND } from "@/lib/api";
 import type { SearchApiResponse } from "@/types/property";
+import { Info } from "lucide-react";
 
 const EXAMPLES = [
   "Palermo, entre USD 90k y 120k, desde 40m²",
@@ -49,6 +50,20 @@ export default function HomePage() {
           </p>
         )}
       </div>
+
+      {/* Banner demo: visible solo en GitHub Pages sin backend configurado */}
+      {!HAS_BACKEND && (
+        <div className="mx-auto mb-6 max-w-2xl flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          <p className="text-sm text-amber-800">
+            <span className="font-semibold">Demo estática</span> — las búsquedas requieren el backend.
+            Para probarlo en vivo ejecutá{" "}
+            <code className="rounded bg-amber-100 px-1 font-mono text-xs">./start.sh</code>{" "}
+            en tu máquina y abrí{" "}
+            <code className="rounded bg-amber-100 px-1 font-mono text-xs">localhost:3000</code>.
+          </p>
+        </div>
+      )}
 
       {/* Search */}
       <div

@@ -1,6 +1,11 @@
 import type { SearchApiResponse } from "@/types/property";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// Bakeado en build time: true solo cuando NEXT_PUBLIC_API_URL está configurado.
+// En GitHub Pages sin secret configurado este valor es false.
+export const HAS_BACKEND = !!(process.env.NEXT_PUBLIC_API_URL);
+
+// || en vez de ?? para que string vacío también active el fallback
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export async function searchProperties(
   query: string,
