@@ -42,7 +42,6 @@ jobs:
           fi
           cd frontend && npm run build
         env:
-          NEXT_PUBLIC_BASE_PATH: /CompraDepar
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
       - name: Subir artefacto de Pages
