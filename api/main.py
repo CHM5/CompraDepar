@@ -91,8 +91,8 @@ app.add_middleware(
     # Lee origins adicionales desde .env: CORS_ORIGINS=https://mi-front.com,https://otro.com
     allow_origins=[
         "https://chm5.github.io",          # GitHub Pages (producción)
-        "https://deparfinder.com",          # dominio propio (futuro)
-        "https://www.deparfinder.com",
+        "https://deparfinder.com.ar",          # dominio propio (futuro)
+        "https://www.deparfinder.com.ar",
         "http://localhost:3000",            # dev local Next.js
         "http://localhost:3003",
         *[o.strip() for o in _os.getenv("CORS_ORIGINS", "").split(",") if o.strip()],
