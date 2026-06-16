@@ -1,0 +1,29 @@
+[Unit]
+Description=Cloudflare Tunnel — Depar Finder API
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60s
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+
+# cloudflared usa ~/.cloudflared/config.yml automáticamente
+ExecStart=/usr/local/bin/cloudflared tunnel --config /home/pi/.cloudflared/config.yml run
+
+# Reinicio automático — se reconecta si cae la red
+Restart=always
+RestartSec=10s
+
+# Logs a journald (ver con: journalctl -u cloudflared -f)
+StandardOutput=journal
+StandardError=journal
+
+# Seguridad
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

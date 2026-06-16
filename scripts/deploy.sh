@@ -129,8 +129,22 @@ fi
 sudo systemctl reload nginx
 success "Nginx recargado"
 
-# ── 6. Validación ─────────────────────────────────────────────────────────────
-info "[6/6] Validando despliegue..."
+# ── 6. Cloudflare Tunnel (opcional — solo si está instalado) ──────────────────
+if systemctl list-unit-files cloudflared.service &>/dev/null 2>&1; then
+    info "[6/7] Reiniciando Cloudflare Tunnel..."
+    sudo systemctl restart cloudflared || true
+    sleep 2
+    if sudo systemctl is-active --quiet cloudflared; then
+        success "cloudflared activo"
+    else
+        warn "cloudflared no está corriendo (ejecutá setup-cloudflare.sh si querés el túnel)"
+    fi
+else
+    info "[6/7] Cloudflare Tunnel no instalado — saltando"
+fi
+
+# ── 7. Validación ─────────────────────────────────────────────────────────────
+info "[7/7] Validando despliegue..."
 sleep 2
 
 # Health check del backend
@@ -152,16 +166,18 @@ echo ""
 echo "══════════════════════════════════════════════"
 echo "  Deploy completado exitosamente."
 echo ""
-echo "  Servicios:"
-sudo systemctl is-active depar-backend nginx 2>/dev/null | while IFS= read -r line; do
-    echo "    $line"
-done || true
+echo "  Servicios activos:"
+for svc in depar-backend nginx cloudflared; do
+    STATUS=$(sudo systemctl is-active "$svc" 2>/dev/null || echo "no instalado")
+    printf "    %-20s %s\n" "$svc" "$STATUS"
+done
 echo ""
 echo "  App disponible en:"
-echo "  → http://192.168.1.43"
-echo "  → API: http://192.168.1.43/api/v1/"
+echo "  → Local:  http://192.168.1.43"
+echo "  → Túnel:  https://api.deparfinder.com (si cloudflared está activo)"
 echo ""
 echo "  Logs útiles:"
-echo "  → Backend:  journalctl -u depar-backend -f"
-echo "  → Nginx:    tail -f $APP_DIR/logs/nginx-access.log"
+echo "  → Backend:    journalctl -u depar-backend -f"
+echo "  → Cloudflare: journalctl -u cloudflared -f"
+echo "  → Nginx:      tail -f $APP_DIR/logs/nginx-access.log"
 echo "══════════════════════════════════════════════"

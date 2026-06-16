@@ -1,0 +1,17 @@
+# ~/.cloudflared/config.yml
+# ─────────────────────────────────────────────────────────────────────────────
+# Reemplazar <TUNNEL_ID> con el ID real obtenido al correr:
+#   cloudflared tunnel create depar-finder-api
+#
+# Ejemplo de TUNNEL_ID: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+# ─────────────────────────────────────────────────────────────────────────────
+
+tunnel: <TUNNEL_ID>
+credentials-file: /home/pi/.cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  - hostname: api.deparfinder.com
+    service: http://localhost:8000
+
+  # Regla catch-all obligatoria (devuelve 404 para cualquier otra petición)
+  - service: http_status:404

@@ -33,7 +33,14 @@ jobs:
         run: cd frontend && npm ci
 
       - name: Build estático
-        run: cd frontend && npm run build
+        run: |
+          if [ -z "$NEXT_PUBLIC_API_URL" ]; then
+            echo "⚠ WARNING: NEXT_PUBLIC_API_URL no configurado."
+            echo "  Ve a Settings → Secrets → New secret: NEXT_PUBLIC_API_URL=https://api.deparfinder.com"
+          else
+            echo "✓ NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL"
+          fi
+          cd frontend && npm run build
         env:
           NEXT_PUBLIC_BASE_PATH: /CompraDepar
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
