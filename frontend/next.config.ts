@@ -1,11 +1,11 @@
-import type { NextConfig } from "next";
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
-// En GitHub Pages el repo se sirve desde /CompraDepar.
-// Localmente no hay basePath para que localhost:3000 siga funcionando.
-const nextConfig: NextConfig = {
+const nextConfig = {
   output: "export",
-  images: { unoptimized: true },
+  basePath,
+  images: {
+    unoptimized: true,
+  },
 };
-
 
 export default nextConfig;
