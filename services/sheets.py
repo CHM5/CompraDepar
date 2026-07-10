@@ -175,16 +175,37 @@ class SheetsService:
                 ws = spreadsheet.add_worksheet(title=FAV_SHEET, rows=500, cols=20)
                 logger.info("[Sheets] Hoja '%s' creada", FAV_SHEET)
 
-            COLS = ["email", "portal", "barrio", "direccion", "precio_usd",
+            COLS = ["comentarios", "email", "portal", "barrio", "direccion", "precio_usd",
                     "expensas", "m2_totales", "m2_cubiertos", "ambientes",
                     "score", "clasificacion", "balcon", "cochera",
                     "ultima_actualizacion", "url"]
 
+            # ── Preservar comentarios existentes (col A) antes de limpiar ──
+            saved_comments: dict[str, str] = {}
+            try:
+                existing = ws.get_all_values()
+                if len(existing) > 1:
+                    # Buscar índices de "comentarios" y "url" en el encabezado actual
+                    header = existing[0]
+                    try:
+                        com_idx = header.index("comentarios")
+                        url_idx = header.index("url")
+                        for row in existing[1:]:
+                            url_val = row[url_idx] if url_idx < len(row) else ""
+                            com_val = row[com_idx] if com_idx < len(row) else ""
+                            if url_val and com_val:
+                                saved_comments[url_val] = com_val
+                    except ValueError:
+                        pass  # hoja recién creada sin encabezado todavía
+            except Exception:
+                pass
+
             rows = [COLS]
             for fav in favorites:
-                # fav puede ser un Pydantic model o un dict
                 d = fav if isinstance(fav, dict) else fav.model_dump()
+                url_val = d.get("url", "")
                 rows.append([
+                    saved_comments.get(url_val, ""),   # comentarios — preservado o vacío
                     email,
                     d.get("portal", ""),
                     d.get("barrio", "") or "",
@@ -199,7 +220,7 @@ class SheetsService:
                     "Sí" if d.get("balcon") else "No",
                     "Sí" if d.get("cochera") else "No",
                     d.get("ultima_actualizacion", "") or "",
-                    d.get("url", ""),
+                    url_val,
                 ])
 
             # Limpiar hoja y reescribir desde A1
