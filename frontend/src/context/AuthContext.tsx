@@ -70,9 +70,9 @@ function planKey(email: string) {
 }
 
 function getPlan(email: string): UserPlan {
-  if (ADMIN_EMAILS.includes(email)) return "premium"; // admins always premium
-  if (typeof window === "undefined") return "free";
-  return (localStorage.getItem(planKey(email)) as UserPlan) ?? "free";
+  if (ADMIN_EMAILS.includes(email)) return "premium";
+  if (typeof window === "undefined") return "premium";
+  return (localStorage.getItem(planKey(email)) as UserPlan) ?? "premium";
 }
 
 function appUserFromFirebase(fb: User): AppUser {

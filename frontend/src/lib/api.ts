@@ -9,7 +9,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export async function searchProperties(
   query: string,
-  plan: "free" | "premium" = "free",
+  plan: "free" | "premium" = "premium",
   extraFilters?: ExtraFilters | null,
 ): Promise<SearchApiResponse> {
   const body: { query: string; extra_filters?: ExtraFilters } = { query };

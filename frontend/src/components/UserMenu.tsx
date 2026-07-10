@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { Crown, History, Heart, LogOut, ChevronDown, Shield, Zap } from "lucide-react";
+import { Crown, History, Heart, LogOut, ChevronDown, Shield, Zap, TableProperties } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { trackEvent } from "@/lib/analytics";
 
@@ -119,6 +119,17 @@ export function UserMenu({ onShowFavorites, onShowHistory }: Props) {
             <History className="h-4 w-4 text-blue-400" />
             Historial de búsquedas
           </button>
+
+          <a
+            href={`https://docs.google.com/spreadsheets/d/${process.env.NEXT_PUBLIC_SHEETS_ID || "1FxQJU8iR_31B8b5Y0bdP0PAxbw7AEObVbengyEQ5Gfk"}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setOpen(false)}
+            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
+          >
+            <TableProperties className="h-4 w-4 text-emerald-500" />
+            Ver en Google Sheets
+          </a>
 
           {/* Upgrade CTA (free plan only) */}
           {plan === "free" && !isAdmin && (

@@ -160,6 +160,60 @@ class SheetsService:
         logger.info("[Sheets] Exportadas %d/%d publicaciones", ok, len(publicaciones))
         return ok
 
+    def sincronizar_favoritos(self, email: str, favorites: list) -> int:
+        """Reemplaza la hoja 'favoritos' con la lista actual de favoritos del usuario.
+        Crea la hoja si no existe. Retorna la cantidad de filas escritas.
+        """
+        if not self._client:
+            return 0
+        try:
+            spreadsheet = self._client.open_by_key(config.GOOGLE_SHEETS_ID)
+            FAV_SHEET = "favoritos"
+            try:
+                ws = spreadsheet.worksheet(FAV_SHEET)
+            except gspread.exceptions.WorksheetNotFound:
+                ws = spreadsheet.add_worksheet(title=FAV_SHEET, rows=500, cols=20)
+                logger.info("[Sheets] Hoja '%s' creada", FAV_SHEET)
+
+            COLS = ["email", "portal", "barrio", "direccion", "precio_usd",
+                    "expensas", "m2_totales", "m2_cubiertos", "ambientes",
+                    "score", "clasificacion", "balcon", "cochera",
+                    "ultima_actualizacion", "url"]
+
+            rows = [COLS]
+            for fav in favorites:
+                # fav puede ser un Pydantic model o un dict
+                d = fav if isinstance(fav, dict) else fav.model_dump()
+                rows.append([
+                    email,
+                    d.get("portal", ""),
+                    d.get("barrio", "") or "",
+                    d.get("direccion", "") or "",
+                    d.get("precio_usd", "") or "",
+                    d.get("expensas", "") or "",
+                    d.get("m2_totales", "") or "",
+                    d.get("m2_cubiertos", "") or "",
+                    d.get("ambientes", "") or "",
+                    d.get("score", "") or "",
+                    d.get("clasificacion", "") or "",
+                    "Sí" if d.get("balcon") else "No",
+                    "Sí" if d.get("cochera") else "No",
+                    d.get("ultima_actualizacion", "") or "",
+                    d.get("url", ""),
+                ])
+
+            # Limpiar hoja y reescribir desde A1
+            ws.clear()
+            ws.update("A1", rows, value_input_option="USER_ENTERED")
+            # Negrita en encabezado
+            ws.format("1:1", {"textFormat": {"bold": True},
+                               "backgroundColor": {"red": 0.9, "green": 0.3, "blue": 0.3}})
+            logger.info("[Sheets] Favoritos sincronizados: %d filas (usuario: %s)", len(rows) - 1, email)
+            return len(rows) - 1
+        except Exception as e:
+            logger.error("[Sheets] Error al sincronizar favoritos: %s", e, exc_info=True)
+            return 0
+
     # ── Helpers internos ──────────────────────────────────────────────────────
 
     def _build_credentials(self) -> Credentials:

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Bot, Loader2, MapPin, SearchX, Sparkles } from "lucide-react";
+import { AlertCircle, Bot, Clock, Loader2, MapPin, RefreshCw, SearchX, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { PropertyCard } from "./PropertyCard";
 import type { SearchApiResponse, FiltersApplied, PropertyResult } from "@/types/property";
@@ -64,6 +64,18 @@ function FiltersPanel({ filters }: { filters: FiltersApplied }) {
       ))}
     </div>
   );
+}
+
+/** Devuelve texto relativo: "hace 5 min", "hace 2 h", "hace 3 días" */
+function timeAgo(isoStr: string | null | undefined): string {
+  if (!isoStr) return "hora desconocida";
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "hace un momento";
+  if (mins < 60) return `hace ${mins} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `hace ${hours} h`;
+  return `hace ${Math.floor(hours / 24)} día${Math.floor(hours / 24) !== 1 ? "s" : ""}`;
 }
 
 const SUGGESTED_PROMPTS = [
@@ -345,7 +357,7 @@ export function ResultsList({
     );
   }
 
-  const { results, total, truncated, plan, filters_applied } = data;
+  const { results, total, filters_applied, from_cache, scraped_at } = data;
 
   // Apply explicit sort then scoring prefs
   const sorted: PropertyResult[] = sortByPrefs(sortResults(results, sortBy), scoringPrefs);
@@ -355,7 +367,7 @@ export function ResultsList({
       {/* Filtros activos */}
       <FiltersPanel filters={filters_applied} />
 
-      {/* Sort bar + stats */}
+      {/* Sort bar + stats + badge de frescura */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm text-neutral-500">
           <span className="font-semibold text-neutral-800">{total}</span>{" "}
@@ -365,6 +377,18 @@ export function ResultsList({
           )}
         </span>
         <div className="flex flex-wrap items-center gap-1.5">
+          {/* Badge: datos frescos vs caché */}
+          {from_cache === false ? (
+            <span className="flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700 border border-green-100">
+              <RefreshCw className="h-3 w-3" />
+              Datos en tiempo real
+            </span>
+          ) : scraped_at ? (
+            <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 border border-amber-100" title={`Último scraping: ${scraped_at}`}>
+              <Clock className="h-3 w-3" />
+              {timeAgo(scraped_at)}
+            </span>
+          ) : null}
           <span className="text-xs font-medium text-neutral-400">Ordenar:</span>
           {SORT_OPTIONS.map(({ key, label }) => (
             <button
@@ -380,24 +404,8 @@ export function ResultsList({
               {label}
             </button>
           ))}
-          <span className="ml-1 rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs capitalize text-neutral-500">
-            Plan {plan}
-          </span>
         </div>
       </div>
-
-      {/* Truncated banner */}
-      {truncated && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-          <p className="text-sm text-amber-800">
-            Mostrando los primeros {results.length} resultados.{" "}
-            <span className="font-semibold">
-              Actualizá a Premium para ver los {total} resultados.
-            </span>
-          </p>
-        </div>
-      )}
 
       {/* Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

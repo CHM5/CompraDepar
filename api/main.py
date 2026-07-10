@@ -30,7 +30,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import config as app_config
-from api.schemas import PropertyResult, SearchRequest, SearchResponse, ChatRequest, ChatResponse, ExtraFilters
+from api.schemas import PropertyResult, SearchRequest, SearchResponse, ChatRequest, ChatResponse, ExtraFilters, FavoriteSyncRequest, FavoriteItem
 from api.services.query_parser import parse_query
 from api.services import search_service
 from api.services import chat_service
@@ -39,7 +39,7 @@ from shared.intent import Intent, INTENT_MESSAGES, detect_intent
 
 logger = logging.getLogger(__name__)
 
-FREE_LIMIT = 5  # Free plan: max 5 results per search
+FREE_LIMIT = 999  # sin límite práctico
 
 # Admin emails from env var (comma-separated)
 import os as _os
@@ -110,6 +110,21 @@ app.add_middleware(
 def health() -> dict:
     """Verificación de vida del servicio."""
     return {"status": "ok"}
+
+
+@app.post("/api/v1/favorites/sync", tags=["favorites"])
+def sync_favorites(body: FavoriteSyncRequest) -> dict:
+    """Sincroniza la lista de favoritos del usuario con la hoja 'favoritos' en Google Sheets."""
+    try:
+        from services.sheets import SheetsService
+        svc = SheetsService()
+        if not svc.connect():
+            return {"ok": False, "message": "Sheets no configurado"}
+        count = svc.sincronizar_favoritos(body.email, body.favorites)
+        return {"ok": True, "synced": count}
+    except Exception as e:
+        logger.error("[favorites/sync] %s", e, exc_info=True)
+        return {"ok": False, "message": str(e)}
 
 
 @app.get("/api/v1/scoring", tags=["meta"])
@@ -222,16 +237,18 @@ def search(
     logger.info("[API] filters=%r", filters)
 
     # ── Buscar (cache-first + scraping dinámico si cache expirada) ───────────
-    all_results = search_service.search(
+    search_result = search_service.search(
         filters,
         early_exit=FREE_LIMIT if plan == "free" else None,
         skip_scraping=skip_scraping,
     )
+    all_results: list = search_result["results"]
+    from_cache: bool  = search_result["from_cache"]
+    scraped_at: str | None = search_result["scraped_at"]
 
-    # ── Aplicar límite según plan ─────────────────────────────────────────────
-    limit = FREE_LIMIT if plan == "free" else None
-    truncated = limit is not None and len(all_results) > limit
-    page = all_results[:limit] if limit is not None else all_results
+    # ── Sin límite efectivo (FREE_LIMIT = 9999) ───────────────────────────────
+    truncated = False
+    page = all_results
 
     # ── Construir respuesta ───────────────────────────────────────────────────
     results = [
@@ -252,6 +269,7 @@ def search(
             url=r.get("url", ""),
             estado=r.get("estado", "NUEVA"),
             imagen_url=_normalize_image_url(r.get("imagen_url")),
+            ultima_actualizacion=r.get("ultima_actualizacion"),
         )
         for i, r in enumerate(page)
     ]
@@ -264,6 +282,8 @@ def search(
         results=results,
         filters_applied=filters.model_dump(),
         intent=Intent.SEARCH.value,
+        from_cache=from_cache,
+        scraped_at=scraped_at,
     )
 
 

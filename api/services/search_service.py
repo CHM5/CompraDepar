@@ -37,46 +37,54 @@ def search(
     filters: SearchFilters,
     early_exit: Optional[int] = None,
     skip_scraping: bool = False,
-) -> list[dict]:
+) -> dict:
     """Punto de entrada principal.
 
-    Retorna lista de dicts ordenados por score DESC.
-    early_exit: si se indica (plan free), scraping de 1 página por portal en paralelo.
+    Retorna dict con:
+        results:    list[dict] ordenados por score DESC
+        from_cache: bool — True si los datos vienen de la DB sin re-scraping
+        scraped_at: str | None — ISO timestamp del último scraping
+
+    early_exit: si se indica, scraping de 1 página por portal (plan con límite).
     skip_scraping: cuando el frontend envía extra_filters, solo consulta la DB.
     """
     if skip_scraping:
         logger.info("[search_service] Refinamiento: DB-only, sin scraping.")
-        return _query_db(filters)
+        return {"results": _query_db(filters), "from_cache": True, "scraped_at": None}
 
     fhash = filters.filters_hash()
     barrios_str = ",".join(filters.barrios)
+    from_cache = True  # asumimos caché hasta que se demuestre lo contrario
 
     if early_exit is not None:
-        # Plan free: si ya existe caché completa (premium), la reutilizamos
+        # Baja prioridad: si ya existe caché completa (premium), la reutilizamos
         if db.has_fresh_results(fhash):
-            logger.info("[search_service] Free plan: caché completa disponible, sin scraping.")
-            return _query_db(filters)
-        # Clave separada para scraping parcial
-        partial_key = fhash + "_partial"
-        if not db.has_fresh_results(partial_key):
-            logger.info("[search_service] Free plan: scraping parcial (todos los portales, 1 página).")
-            saved = _run_scrapers(filters, early_exit=early_exit)
-            if saved > 0:
-                db.mark_search_done(partial_key, barrios=barrios_str,
-                                    precio_max=filters.precio_max, m2_min=filters.m2_min)
+            logger.info("[search_service] Caché completa disponible, sin scraping.")
         else:
-            logger.info("[search_service] Free plan: caché parcial vigente — usando DB.")
+            partial_key = fhash + "_partial"
+            if not db.has_fresh_results(partial_key):
+                logger.info("[search_service] Scraping parcial (1 página por portal).")
+                from_cache = False
+                saved = _run_scrapers(filters, early_exit=early_exit)
+                if saved > 0:
+                    db.mark_search_done(partial_key, barrios=barrios_str,
+                                        precio_max=filters.precio_max, m2_min=filters.m2_min)
+            else:
+                logger.info("[search_service] Caché parcial vigente — usando DB.")
     else:
-        # Plan premium: scraping completo si no hay caché fresca
+        # Scraping completo si no hay caché fresca
         if not db.has_fresh_results(fhash):
-            logger.info("[search_service] Premium: caché expirada — scraping completo. %r", filters)
+            logger.info("[search_service] Caché expirada — scraping completo. %r", filters)
+            from_cache = False
             _run_scrapers(filters)
             db.mark_search_done(fhash, barrios=barrios_str,
                                 precio_max=filters.precio_max, m2_min=filters.m2_min)
         else:
-            logger.info("[search_service] Premium: caché vigente — usando DB. %r", filters)
+            logger.info("[search_service] Caché vigente (%dh TTL) — usando DB. %r",
+                        CACHE_TTL_HOURS, filters)
 
-    return _query_db(filters)
+    scraped_at = db.get_cache_timestamp(fhash)
+    return {"results": _query_db(filters), "from_cache": from_cache, "scraped_at": scraped_at}
 
 
 def _collect_from_scraper(scraper_class, filters: SearchFilters, max_pages: int) -> list:
@@ -137,6 +145,8 @@ def _query_db(filters: SearchFilters) -> list[dict]:
         "estado != 'ELIMINADA'",
         "score IS NOT NULL",
         "COALESCE(operacion, 'venta') = ?",
+        # Excluir avisos no actualizados en los últimos 30 días (probablemente vencidos)
+        "(ultima_actualizacion IS NULL OR ultima_actualizacion >= datetime('now', '-30 days'))",
     ]
     params: list = [filters.operacion]
 

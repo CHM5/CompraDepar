@@ -1,6 +1,20 @@
 import { useState, useEffect, useCallback } from "react";
 import type { PropertyResult } from "@/types/property";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+async function syncToSheets(email: string, favs: PropertyResult[]) {
+  try {
+    await fetch(`${API_URL}/api/v1/favorites/sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, favorites: favs }),
+    });
+  } catch {
+    // silencioso — no bloquear UI si Sheets falla
+  }
+}
+
 function propKey(p: PropertyResult): string {
   return `${p.portal}::${p.url}`;
 }
@@ -32,7 +46,7 @@ export function useFavorites(email: string | null): UseFavoritesReturn {
 
   const toggleFav = useCallback(
     (prop: PropertyResult) => {
-      if (!storageKey) return;
+      if (!storageKey || !email) return;
       setFavs((prev) => {
         const key = propKey(prop);
         const exists = prev.some((p) => propKey(p) === key);
@@ -42,10 +56,12 @@ export function useFavorites(email: string | null): UseFavoritesReturn {
         try {
           localStorage.setItem(storageKey, JSON.stringify(next));
         } catch { /* storage full */ }
+        // Sincronizar con Google Sheets en segundo plano
+        syncToSheets(email, next);
         return next;
       });
     },
-    [storageKey],
+    [storageKey, email],
   );
 
   const isFav = useCallback(

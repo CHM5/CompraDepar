@@ -62,6 +62,7 @@ class PropertyResult(BaseModel):
     url: str
     estado: str = "NUEVA"
     imagen_url: Optional[str] = None
+    ultima_actualizacion: Optional[str] = None
 
 
 class SearchResponse(BaseModel):
@@ -73,6 +74,8 @@ class SearchResponse(BaseModel):
     filters_applied: dict
     intent: Optional[str] = None
     message: Optional[str] = None
+    from_cache: bool = False
+    scraped_at: Optional[str] = None
 
 
 class ChatRequest(BaseModel):
@@ -81,3 +84,28 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     message: str
+
+
+class FavoriteItem(BaseModel):
+    """Un favorito enviado desde el frontend para sincronizar con Sheets."""
+    ranking: int = 0
+    portal: str
+    barrio: Optional[str] = None
+    direccion: Optional[str] = None
+    precio_usd: Optional[float] = None
+    expensas: Optional[float] = None
+    m2_totales: Optional[float] = None
+    m2_cubiertos: Optional[float] = None
+    ambientes: Optional[int] = None
+    score: Optional[float] = None
+    clasificacion: Optional[str] = None
+    balcon: bool = False
+    cochera: bool = False
+    url: str
+    imagen_url: Optional[str] = None
+    ultima_actualizacion: Optional[str] = None
+
+
+class FavoriteSyncRequest(BaseModel):
+    email: str
+    favorites: list[FavoriteItem]

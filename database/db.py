@@ -19,7 +19,7 @@ from database.models import Publicacion
 
 logger = logging.getLogger(__name__)
 
-CACHE_TTL_HOURS: int = 24  # horas antes de repetir scraping para los mismos filtros
+CACHE_TTL_HOURS: int = 2   # horas antes de repetir scraping para los mismos filtros
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -505,3 +505,13 @@ def mark_search_done(filters_hash: str, barrios: str = "", precio_max: Optional[
             (filters_hash, barrios, precio_max, m2_min, now),
         )
     logger.debug("[DB] search_cache actualizado: hash=%s barrios=%s", filters_hash[:8], barrios)
+
+
+def get_cache_timestamp(filters_hash: str) -> Optional[str]:
+    """Retorna el ISO timestamp del último scraping para este hash, o None si no existe."""
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT scraped_at FROM search_cache WHERE filters_hash = ? LIMIT 1",
+            (filters_hash,),
+        ).fetchone()
+    return row["scraped_at"] if row else None

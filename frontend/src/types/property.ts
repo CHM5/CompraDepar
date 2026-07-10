@@ -15,6 +15,7 @@ export interface PropertyResult {
   url: string;
   estado: string;
   imagen_url: string | null;
+  ultima_actualizacion?: string | null;
 }
 
 export interface ExtraFilters {
@@ -63,6 +64,8 @@ export interface SearchApiResponse {
   filters_applied: FiltersApplied;
   intent?: string;
   message?: string;
+  from_cache?: boolean;
+  scraped_at?: string | null;
 }
 
 export interface ChatMessage {
