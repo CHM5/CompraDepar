@@ -108,15 +108,20 @@ def _run_scrapers(filters: SearchFilters, early_exit: Optional[int] = None) -> i
     from scrapers.argenprop import ArgenpropScraper
     from scrapers.mel import MelScraper
     from scrapers.toribio import ToribioachavalScraper
+    from scrapers.cipolla import CipollaScraper
+    from scrapers.brick import BrickScraper
 
     max_pages = 1 if early_exit is not None else 9999
-    scraper_classes = [ZonapropScraper, ArgenpropScraper, MelScraper, ToribioachavalScraper]
+    scraper_classes = [
+        ZonapropScraper, ArgenpropScraper, MelScraper,
+        ToribioachavalScraper, CipollaScraper, BrickScraper,
+    ]
     logger.info("[search_service] Scraping en paralelo: %d scrapers, max_pages=%d",
                 len(scraper_classes), max_pages)
 
     # HTTP en paralelo
     all_pubs: list = []
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    with ThreadPoolExecutor(max_workers=6) as executor:
         futures = [executor.submit(_collect_from_scraper, cls, filters, max_pages)
                    for cls in scraper_classes]
         for future in as_completed(futures):
